@@ -263,6 +263,18 @@
   https://files.catbox.moe/xot0xv.zip
 - This PC updated to 0.1.3 and smoke-tested. Code pushed to main.
 
+## 2026-09-19 - v0.1.4: core loop hardened (friends + files)
+- Friend removal overhaul: confirm dialog, full DM-room disconnect (removed
+  peers are actually cut off — previously the room stayed open), typing
+  cleared, history kept. New Recently removed section with one-click Re-add
+  (no invite code needed) + forget. Re-add/accept paths clear the entry.
+- File sharing proven for real (scripts/e2e-files.mjs): generated PNG attached
+  in one peer renders from a local blob URL in the other (E2EE chunks live),
+  text reply back, full duplex, removal flow asserted, zero page errors.
+- Published as GitHub release v0.1.4 (4 assets, latest.json serving 0.1.4).
+  Direct zip: https://files.catbox.moe/b87nzg.zip
+- This PC updated to 0.1.4 and smoke-tested. Code pushed to main.
+
 ## 2026-09-19 - GitHub live: MinikLover67/Rascals published
 - Repo created public (was private - updater needs anonymous downloads),
   full source pushed to main, release v0.1.1 published with all 4 assets
