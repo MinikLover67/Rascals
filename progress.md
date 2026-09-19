@@ -232,3 +232,13 @@
   (https://files.catbox.moe/qn7d2p.zip), reinstalled here.
 - Still needed from the user: create the MinikLover67/Rascals repo on GitHub
   and publish release/v0.1.1/* as release v0.1.1 to activate auto-update.
+
+## 2026-09-19 - GitHub live: MinikLover67/Rascals published
+- Repo created public (was private - updater needs anonymous downloads),
+  full source pushed to main, release v0.1.1 published with all 4 assets
+  (setup exe + .sig, msi, latest.json).
+- Verified live + anonymous: latest.json serves v0.1.1 with signature,
+  installer downloads whole (4,528,218 bytes). Auto-update is ACTIVE.
+- Housekeeping: junk files deleted before commit (never pushed), token
+  stripped from git remote. Token used had full scopes - rotate it to minimal
+  scopes in GitHub settings when convenient.
