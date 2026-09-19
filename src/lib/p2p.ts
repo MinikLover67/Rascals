@@ -732,6 +732,15 @@ export class P2P {
     }
   }
 
+  /** Fully disconnect a DM: leave the room so no further traffic flows. */
+  leaveDmRoom(friendId: string): void {
+    const entry = this.dmRooms.get(friendId)
+    if (entry) {
+      void entry.room.leave()
+      this.dmRooms.delete(friendId)
+    }
+  }
+
   // ---- Server rooms --------------------------------------------------------
 
   async joinServerRoom(serverId: string): Promise<void> {

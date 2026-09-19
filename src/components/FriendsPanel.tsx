@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { decodeInvite, encodeInvite } from '../lib/invite'
-import { acceptRequest, getP2P, requestFriend } from '../lib/session'
+import { acceptRequest, getP2P, requestFriend, unfriend } from '../lib/session'
 import { useApp, unreadCount } from '../store/app'
 import SettingsModal from './SettingsModal'
 
@@ -15,8 +15,9 @@ export default function FriendsPanel() {
   const requests = useApp((s) => s.requests)
   const selectedFriend = useApp((s) => s.selectedFriend)
   const selectFriend = useApp((s) => s.selectFriend)
-  const removeFriend = useApp((s) => s.removeFriend)
   const removeRequest = useApp((s) => s.removeRequest)
+  const recent = useApp((s) => s.recent)
+  const dropRecent = useApp((s) => s.dropRecent)
   const messages = useApp((s) => s.messages)
   const lastRead = useApp((s) => s.lastRead)
 
@@ -232,9 +233,11 @@ export default function FriendsPanel() {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  removeFriend(f.userId)
+                  if (window.confirm(`Remove ${f.displayName} as a friend? Chat history is kept.`))
+                    void unfriend(f.userId).catch(() => {})
                 }}
                 title="Remove friend"
+                data-testid="remove-friend"
                 className="rounded px-1.5 text-rascal-dim hover:bg-white/10 hover:text-rascal-red"
               >
                 ×
@@ -242,6 +245,42 @@ export default function FriendsPanel() {
             </div>
           )
         })}
+        {recent.length > 0 && (
+          <div className="mt-4">
+            <div className="text-xs font-semibold uppercase tracking-wider text-rascal-dim">
+              Recently removed
+            </div>
+            {recent.map((r) => (
+              <div
+                key={r.userId}
+                data-testid="recent-row"
+                className="mt-1.5 flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm text-rascal-dim">{r.displayName}</div>
+                  <div className="truncate font-mono text-[10px] text-rascal-dim">
+                    {shortId(r.userId)}
+                  </div>
+                </div>
+                <button
+                  onClick={() => void requestFriend(r.userId, r.displayName).catch(() => {})}
+                  title="Send friend request again (no code needed)"
+                  data-testid="readd-friend"
+                  className="shrink-0 rounded-md bg-rascal-accent/20 px-2 py-1 text-[11px] font-semibold text-rascal-accent hover:bg-rascal-accent/30"
+                >
+                  Re-add
+                </button>
+                <button
+                  onClick={() => dropRecent(r.userId)}
+                  title="Forget"
+                  className="rounded px-1 text-rascal-dim hover:text-white"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 border-t border-rascal-line p-3 text-[11px] text-rascal-dim">

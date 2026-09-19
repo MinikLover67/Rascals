@@ -644,7 +644,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
 
       <div className="border-t border-rascal-line p-3">
         <div className="flex items-end gap-2">
-          <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => void onFiles(e.target.files)} />
+          <input ref={fileRef} type="file" multiple data-testid="file-input" className="hidden" onChange={(e) => void onFiles(e.target.files)} />
           <button
             onClick={() => fileRef.current?.click()}
             title="Attach files or images (E2EE, up to 25 MB)"

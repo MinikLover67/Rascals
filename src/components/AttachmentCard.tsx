@@ -55,7 +55,7 @@ export default function AttachmentCard({
   }
 
   return (
-    <div className="mb-1.5">
+    <div className="mb-1.5" data-testid="attachment" data-filename={file.name}>
       {isImage && (url || file.thumb) && (
         <button onClick={() => url && setZoom(true)} className="block max-w-full cursor-zoom-in">
           <img

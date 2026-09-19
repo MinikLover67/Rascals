@@ -203,6 +203,7 @@ export async function startSession(identity: Identity): Promise<void> {
 export async function acceptRequest(userId: string, displayName: string): Promise<void> {
   const s = useApp.getState()
   s.removeRequest(userId)
+  s.dropRecent(userId)
   s.addFriend({ userId, displayName, online: false, addedAt: Date.now() })
   await getP2P()?.ensureDmRoom(userId)
   await getChat()?.peerBecameAvailable(userId).catch(() => {})
@@ -211,7 +212,25 @@ export async function acceptRequest(userId: string, displayName: string): Promis
 /** Request a friend by userId: record outgoing, join DM room, send lobby knock. */
 export async function requestFriend(userId: string, displayName: string): Promise<void> {
   const s = useApp.getState()
+  s.dropRecent(userId)
   s.upsertRequest({ userId, displayName, direction: 'out', ts: Date.now() })
   await getP2P()?.ensureDmRoom(userId)
   await getP2P()?.sendFriendRequest(userId)
+}
+
+/**
+ * Fully remove a friend: disconnect the DM room (no further traffic either
+ * way), drop pending requests, clear typing, remember them for one-click
+ * re-add. Chat history is kept and reappears if they are re-added.
+ */
+export async function unfriend(userId: string): Promise<void> {
+  const s = useApp.getState()
+  const f = s.friends.find((x) => x.userId === userId)
+  getP2P()?.leaveDmRoom(userId)
+  s.removeRequest(userId)
+  s.setTyping(userId, 0)
+  s.removeFriend(userId)
+  if (f) {
+    s.rememberRecent({ userId, displayName: f.displayName, removedAt: Date.now() })
+  }
 }

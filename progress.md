@@ -254,6 +254,15 @@
 - Verified: `npm run lint` zero warnings, tsc clean, repro-select E2E still
   green. Committed + pushed to MinikLover67/Rascals.
 
+## 2026-09-19 - v0.1.3: unmissable updates, live now
+- The version in the sidebar footer is now a button: click it and it checks
+  for updates on the spot (result shown inline, banner appears up top when
+  found). No more hunting through Settings.
+- Published as GitHub release v0.1.3 (4 assets, latest.json serving 0.1.3).
+  Both laptops on 0.1.1/0.1.2 get the banner on next check. Direct zip too:
+  https://files.catbox.moe/xot0xv.zip
+- This PC updated to 0.1.3 and smoke-tested. Code pushed to main.
+
 ## 2026-09-19 - GitHub live: MinikLover67/Rascals published
 - Repo created public (was private - updater needs anonymous downloads),
   full source pushed to main, release v0.1.1 published with all 4 assets

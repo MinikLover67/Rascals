@@ -16,6 +16,13 @@ export interface FriendRequest {
   ts: number
 }
 
+/** Ex-friends, remembered so re-adding is one click (no code needed). */
+export interface RecentRemoval {
+  userId: string
+  displayName: string
+  removedAt: number
+}
+
 export type MsgStatus = 'queued' | 'sent' | 'delivered'
 
 export interface FileMeta {
@@ -158,6 +165,7 @@ interface AppState {
   identity: Identity | null
   friends: Friend[]
   requests: FriendRequest[]
+  recent: RecentRemoval[]
   selectedFriend: string | null
   selectedGroup: string | null
   selectedServer: string | null
@@ -196,6 +204,8 @@ interface AppState {
   setOnline: (userId: string, online: boolean) => void
   upsertRequest: (r: FriendRequest) => void
   removeRequest: (userId: string) => void
+  rememberRecent: (r: RecentRemoval) => void
+  dropRecent: (userId: string) => void
   selectFriend: (userId: string | null) => void
   upsertMessage: (m: ChatMessage) => void
   setStatus: (friendId: string, id: string, status: MsgStatus) => void
@@ -235,6 +245,8 @@ interface AppState {
 
 const FRIENDS_KEY = 'rascals.friends.v1'
 const REQUESTS_KEY = 'rascals.requests.v1'
+const RECENT_KEY = 'rascals.recent.v1'
+const MAX_RECENT = 20
 const MESSAGES_KEY = 'rascals.messages.v2'
 const DRAFTS_KEY = 'rascals.drafts.v1'
 const LASTREAD_KEY = 'rascals.lastread.v1'
@@ -261,6 +273,7 @@ export const useApp = create<AppState>((set) => ({
   identity: null,
   friends: load<Friend[]>(FRIENDS_KEY, []).map((f) => ({ ...f, online: false })),
   requests: load<FriendRequest[]>(REQUESTS_KEY, []),
+  recent: load<RecentRemoval[]>(RECENT_KEY, []),
   selectedFriend: null,
   messages: load<Record<string, ChatMessage[]>>(MESSAGES_KEY, {}),
   typing: {},
@@ -327,6 +340,12 @@ export const useApp = create<AppState>((set) => ({
     }),
   removeRequest: (userId) =>
     set((s) => ({ requests: s.requests.filter((r) => r.userId !== userId) })),
+  rememberRecent: (r) =>
+    set((s) => ({
+      recent: [...s.recent.filter((x) => x.userId !== r.userId), r].slice(-MAX_RECENT),
+    })),
+  dropRecent: (userId) =>
+    set((s) => ({ recent: s.recent.filter((r) => r.userId !== userId) })),
   selectFriend: (selectedFriend) =>
     set((s) => {
       if (!selectedFriend) return { selectedFriend }
@@ -514,6 +533,7 @@ useApp.subscribe((s) => {
   try {
     localStorage.setItem(FRIENDS_KEY, JSON.stringify(s.friends))
     localStorage.setItem(REQUESTS_KEY, JSON.stringify(s.requests))
+    localStorage.setItem(RECENT_KEY, JSON.stringify(s.recent))
     const trimmed: Record<string, ChatMessage[]> = {}
     for (const [k, v] of Object.entries(s.messages))
       trimmed[k] = v.slice(-MAX_STORED_PER_CHAT)
