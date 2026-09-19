@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { getServerChat } from '../lib/session'
 import { useApp, type ServerRole } from '../store/app'
-import { shortUid } from './GroupsPanel'
+import { shortUid } from '../lib/format'
 
 export default function ServerSettingsModal({
   serverId,

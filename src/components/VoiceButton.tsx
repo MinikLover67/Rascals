@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { chatFor } from '../lib/chatapi'
-import { fmtDuration } from './AttachmentCard'
+import { fmtDuration } from '../lib/format'
 
 const MAX_SECONDS = 300
 

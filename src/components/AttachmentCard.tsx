@@ -1,18 +1,8 @@
 import { useEffect, useState } from 'react'
 import { blobUrl } from '../lib/idb'
 import { chatFor } from '../lib/chatapi'
+import { fmtBytes, fmtDuration } from '../lib/format'
 import { useApp, type ChatMessage } from '../store/app'
-
-export function fmtBytes(n: number): string {
-  if (n < 1024) return `${n} B`
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
-  return `${(n / 1048576).toFixed(1)} MB`
-}
-
-export function fmtDuration(sec: number): string {
-  const s = Math.max(0, Math.round(sec))
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-}
 
 export default function AttachmentCard({
   chatKey,
@@ -32,13 +22,16 @@ export default function AttachmentCard({
   const received = transfer?.received ?? 0
   const pct = Math.min(100, Math.round((received / total) * 100))
 
+  // Loads the blob URL from IndexedDB: genuine external-system sync.
   useEffect(() => {
     let live = true
     if (fileId && ready) {
       void blobUrl(fileId).then((u) => {
+        // eslint-disable-next-line react/set-state-in-effect
         if (live) setUrl(u)
       })
     } else {
+      // eslint-disable-next-line react/set-state-in-effect
       setUrl(null)
     }
     return () => {

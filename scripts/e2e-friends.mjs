@@ -1,6 +1,8 @@
 // REAL end-to-end: two isolated Chromium contexts run the actual app,
 // Alice sends a friend request to Bob over the real relay network.
 // Asserts the request arrives, gets accepted, and both see each other online.
+// Self-contained: starts vite as a child first (dies with this script).
+import { spawn } from 'node:child_process'
 import { chromium } from 'playwright-core'
 
 const EXE = 'C:\\Users\\MinikLover67\\AppData\\Local\\ms-playwright\\chromium-1243\\chrome-win64\\chrome.exe'
@@ -8,6 +10,28 @@ const URL = 'http://localhost:1420/'
 const T0 = Date.now()
 const stamp = () => `[+${Math.round((Date.now() - T0) / 1000)}s]`
 const log = (...a) => console.log(stamp(), ...a)
+
+log('starting dev server...')
+const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js'], {
+  cwd: process.cwd(),
+  stdio: 'ignore',
+})
+let viteDead = false
+vite.on('exit', () => { viteDead = true })
+let devUp = false
+for (let i = 0; i < 45 && !viteDead; i++) {
+  try {
+    const res = await fetch(URL)
+    if (res.ok) { devUp = true; break }
+  } catch {}
+  await new Promise((r) => setTimeout(r, 2000))
+}
+if (!devUp) {
+  log('dev server failed to start')
+  try { vite.kill() } catch {}
+  process.exit(1)
+}
+log('dev server UP')
 
 const browser = await chromium.launch({
   executablePath: EXE,
@@ -76,4 +100,6 @@ try {
   } catch {}
 }
 await browser.close()
+try { vite.kill() } catch {}
+log('dev server stopped')
 process.exit(failed ? 1 : 0)

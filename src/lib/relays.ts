@@ -13,13 +13,13 @@ import { APP_ID } from './rooms'
 
 export const SIGNAL_RELAYS = [
   'wss://nos.lol',
-  'wss://relay.damus.io',
   'wss://relay.mostr.pub',
   'wss://relay.primal.net',
   'wss://relay.snort.social',
   'wss://yabu.me',
   'wss://chorus.pjv.me',
   'wss://nostr.data.haus',
+  'wss://relay.artio.inf.unibe.ch',
 ]
 
 export interface TurnServer {

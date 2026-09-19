@@ -45,16 +45,26 @@ Write-Output "== Rascals release v$Version =="
 # 1. Sync the version into package.json, Cargo.toml, tauri.conf.json.
 Write-Output '-- bumping versions'
 $pkg = Join-Path $root 'package.json'
-$pkgJson = Get-Content $pkg -Raw | ConvertFrom-Json
-$pkgJson.version = $Version
-$pkgJson | ConvertTo-Json -Depth 20 | Set-Content $pkg -NoNewline
+$pkgText = Get-Content $pkg -Raw
+if ($pkgText -notmatch '"version":\s*"\d+\.\d+\.\d+"') {
+  Write-Error 'Could not find version field in package.json'
+  exit 1
+}
+$pkgText -replace '"version":\s*"\d+\.\d+\.\d+"', "`"version`": `"$Version`"" |
+  Set-Content $pkg -NoNewline
 
 $cargo = Join-Path $root 'src-tauri/Cargo.toml'
-(Get-Content $cargo -Raw) -replace '(?m)^version = "\d+\.\d+\.\d+"$', "version = `"$Version`"" |
-  Set-Content $cargo -NoNewline
+$cargoLines = Get-Content $cargo
+for ($i = 0; $i -lt $cargoLines.Count; $i++) {
+  if ($cargoLines[$i] -match '^\s*version\s*=\s*"\d+\.\d+\.\d+"\s*$') {
+    $cargoLines[$i] = 'version = "' + $Version + '"'
+    break
+  }
+}
+$cargoLines | Set-Content $cargo
 
 $conf = Join-Path $root 'src-tauri/tauri.conf.json'
-(Get-Content $conf -Raw) -replace '"version": "\d+\.\d+\.\d+"', "`"version`": `"$Version`"" |
+(Get-Content $conf -Raw) -replace '"version":\s*"\d+\.\d+\.\d+"', "`"version`": `"$Version`"" |
   Set-Content $conf -NoNewline
 
 # 2. Make sure no running copy locks the exe, then build signed.

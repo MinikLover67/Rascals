@@ -233,6 +233,16 @@
 - Still needed from the user: create the MinikLover67/Rascals repo on GitHub
   and publish release/v0.1.1/* as release v0.1.1 to activate auto-update.
 
+## 2026-09-19 - v0.1.2 shipped: the update loop proven live
+- Payload: replaced flaky relay.damus.io (503s in the wild) with
+  probe-verified relay.artio.inf.unibe.ch. E2E re-passes in ~5 s, zero warnings.
+- Fixed release.ps1 version bump (Cargo.toml regex missed; all three version
+  sources now agree) and made e2e-friends.mjs self-manage vite.
+- Published as GitHub release v0.1.2 (4 assets). latest.json serves 0.1.2
+  anonymously — both laptops on 0.1.1 get the banner on next check.
+  Direct zip too: https://files.catbox.moe/my96n1.zip
+- This PC updated to 0.1.2 and smoke-tested.
+
 ## 2026-09-19 - GitHub live: MinikLover67/Rascals published
 - Repo created public (was private - updater needs anonymous downloads),
   full source pushed to main, release v0.1.1 published with all 4 assets

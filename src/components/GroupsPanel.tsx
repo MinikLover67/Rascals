@@ -2,10 +2,6 @@ import { useState } from 'react'
 import { groupChatKey, unreadCount, useApp } from '../store/app'
 import NewGroupModal from './NewGroupModal'
 
-export function shortUid(userId: string): string {
-  return userId.length > 12 ? `${userId.slice(0, 8)}...` : userId
-}
-
 export default function GroupsPanel() {
   const groups = useApp((s) => s.groups)
   const groupOnline = useApp((s) => s.groupOnline)

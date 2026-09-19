@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { getGroupChat } from '../lib/session'
 import { useApp } from '../store/app'
-import { shortUid } from './GroupsPanel'
+import { shortUid } from '../lib/format'
 
 export default function GroupInfoModal({
   groupId,

@@ -3,7 +3,6 @@
 // exchange tricky messages, screenshot. ASCII only.
 import { spawn } from 'node:child_process'
 import { chromium } from 'playwright-core'
-import path from 'node:path'
 
 const EXE = 'C:\\Users\\MinikLover67\\AppData\\Local\\ms-playwright\\chromium-1243\\chrome-win64\\chrome.exe'
 const URL = 'http://localhost:1420/'

@@ -13,7 +13,7 @@ import { getVoice } from '../lib/session'
 import { renderMarkdown } from '../lib/md'
 import { extractYouTubeId } from '../lib/youtube'
 import { markReadNow, useApp, EMPTY_MESSAGES, EMPTY_PINS, type ChatMessage } from '../store/app'
-import { shortUid } from './GroupsPanel'
+import { shortUid } from '../lib/format'
 
 function fmtTime(ts: number): string {
   const d = new Date(ts)
@@ -354,7 +354,7 @@ function VoiceStrip({ chatKey }: { chatKey: string }) {
   return <VoiceParticipants />
 }
 
-export default function ChatPanel({ chatKey }: { chatKey: string }) {
+function ChatPanelInner({ chatKey }: { chatKey: string }) {
   const identity = useApp((s) => s.identity)
   const friends = useApp((s) => s.friends)
   const group = useApp((s) =>
@@ -395,22 +395,31 @@ export default function ChatPanel({ chatKey }: { chatKey: string }) {
   const typingTimer = useRef<number | null>(null)
   const typingOn = useRef(false)
   const api = useMemo(() => chatFor(chatKey), [chatKey])
+  const q = query.trim().toLowerCase()
+  const visible = useMemo(
+    () =>
+      q
+        ? messages.filter(
+            (m) =>
+              !m.deleted &&
+              (m.body.toLowerCase().includes(q) || (m.file?.name ?? '').toLowerCase().includes(q)),
+          )
+        : messages,
+    [q, messages],
+  )
+  // Day dividers precomputed without mutating render-local state.
+  const dated = useMemo(() => {
+    const days = visible.map((m) => fmtDay(m.ts))
+    return visible.map((m, i) => ({ m, day: days[i], showDay: i === 0 || days[i] !== days[i - 1] }))
+  }, [visible])
 
-  // Mark read whenever the open chat changes.
+  // Mark read whenever the open chat changes (store sync on navigation).
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     markReadNow(chatKey)
   }, [chatKey, messages.length])
 
-  // Reset per-chat UI state when switching chats.
-  useEffect(() => {
-    setReplyTo(null)
-    setEditing(null)
-    setQuery('')
-    setSearchOpen(false)
-    setGifOpen(false)
-    setInfoOpen(false)
-    setFileErr(null)
-  }, [chatKey])
+  // Reset per-chat UI state when switching chats: handled by remount (see below).
 
   // Auto-scroll to bottom on new messages (if already near bottom).
   const stick = useRef(true)
@@ -443,18 +452,11 @@ export default function ChatPanel({ chatKey }: { chatKey: string }) {
     : online
       ? 'online - end-to-end encrypted'
       : 'offline - messages queue + sync later'
+  // Freshness check against the last typing ping (re-evaluated on renders).
+  // eslint-disable-next-line react/purity
   const typing = Date.now() - typingTs < 4000
   const typingLabel = isGroup ? (typingName || 'Someone') : (friend?.displayName ?? '')
   const placeholder = `Message ${title}${online ? '' : ' (offline - will queue)'}`
-
-  const q = query.trim().toLowerCase()
-  const visible = q
-    ? messages.filter(
-        (m) =>
-          !m.deleted &&
-          (m.body.toLowerCase().includes(q) || (m.file?.name ?? '').toLowerCase().includes(q)),
-      )
-    : messages
 
   async function send() {
     const text = draft.trim()
@@ -500,7 +502,6 @@ export default function ChatPanel({ chatKey }: { chatKey: string }) {
     setEditText('')
   }
 
-  let lastDay = ''
   const replyMsg = replyTo ? byId.get(replyTo) : undefined
 
   return (
@@ -567,10 +568,7 @@ export default function ChatPanel({ chatKey }: { chatKey: string }) {
             {q ? 'No messages match.' : `Say hi - everything here is encrypted end to end.`}
           </div>
         )}
-        {visible.map((m) => {
-          const day = fmtDay(m.ts)
-          const showDay = day !== lastDay
-          lastDay = day
+        {dated.map(({ m, day, showDay }) => {
           return (
             <div key={m.id}>
               {showDay && (
@@ -695,4 +693,10 @@ export default function ChatPanel({ chatKey }: { chatKey: string }) {
       )}
     </div>
   )
+}
+
+// Remount per chat so all per-chat useState starts fresh on switch — no
+// reset effect needed (and none of the cascading renders that come with one).
+export default function ChatPanel({ chatKey }: { chatKey: string }) {
+  return <ChatPanelInner key={chatKey} chatKey={chatKey} />
 }
