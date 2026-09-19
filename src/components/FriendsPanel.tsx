@@ -310,6 +310,8 @@ function ConnDot() {
 
 function AppVersion() {
   const [version, setVersion] = useState<string>('')
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
   useEffect(() => {
     let live = true
     void import('@tauri-apps/api/app')
@@ -329,5 +331,29 @@ function AppVersion() {
     }
   }, [])
   if (!version) return null
-  return <span className="shrink-0 font-mono text-[10px]">v{version}</span>
+
+  async function check() {
+    if (busy) return
+    setBusy(true)
+    setNote('checking...')
+    try {
+      const { checkForUpdates } = await import('../lib/updater')
+      setNote(await checkForUpdates(true))
+    } catch {
+      setNote('check failed')
+    } finally {
+      setBusy(false)
+      setTimeout(() => setNote(null), 5000)
+    }
+  }
+
+  return (
+    <button
+      onClick={() => void check()}
+      title={note ?? `Rascals v${version} - click to check for updates (an update banner appears up top when one is found)`}
+      className="shrink-0 rounded px-1 font-mono text-[10px] hover:bg-white/5 hover:text-white"
+    >
+      {busy ? '...' : note ? `${note.slice(0, 28)}` : `v${version}`}
+    </button>
+  )
 }

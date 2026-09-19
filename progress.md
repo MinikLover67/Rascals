@@ -243,6 +243,17 @@
   Direct zip too: https://files.catbox.moe/my96n1.zip
 - This PC updated to 0.1.2 and smoke-tested.
 
+## 2026-09-19 - oxlint gate clean
+- Installed oxlint (was referenced but never installed) + `npm run lint`,
+  per current oxc.rs docs (correctness by default, react/typescript/oxc plugins).
+- Fixed for real: dead live-message/send-message scripts deleted, unused import,
+  shared helpers moved to src/lib/format.ts (only-export-components), ChatPanel
+  day dividers precomputed via useMemo (immutability), ChatPanel remounts per
+  chat instead of a reset effect. Three justified line-level disables with
+  reasons (IndexedDB load, mark-read sync, typing freshness).
+- Verified: `npm run lint` zero warnings, tsc clean, repro-select E2E still
+  green. Committed + pushed to MinikLover67/Rascals.
+
 ## 2026-09-19 - GitHub live: MinikLover67/Rascals published
 - Repo created public (was private - updater needs anonymous downloads),
   full source pushed to main, release v0.1.1 published with all 4 assets
