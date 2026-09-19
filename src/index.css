@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --color-rascal-bg: #131318;
+  --color-rascal-panel: #1a1b22;
+  --color-rascal-rail: #101014;
+  --color-rascal-line: #26272f;
+  --color-rascal-text: #e8e9ee;
+  --color-rascal-dim: #9aa0ae;
+  --color-rascal-accent: #7c6cff;
+  --color-rascal-green: #3ddc84;
+  --color-rascal-amber: #ffb224;
+  --color-rascal-red: #ff5d5d;
+}
+
+/* Light theme: same tokens, new values. Applied via data-theme on <html>. */
+[data-theme='light'] {
+  --color-rascal-bg: #f2f3f7;
+  --color-rascal-panel: #ffffff;
+  --color-rascal-rail: #e4e6ee;
+  --color-rascal-line: #d8dbe5;
+  --color-rascal-text: #17181d;
+  --color-rascal-dim: #5f6572;
+  --color-rascal-accent: #5b4ee0;
+  --color-rascal-green: #0d9b52;
+  --color-rascal-amber: #a86a00;
+  --color-rascal-red: #d33a3a;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-rascal-bg);
+  color: var(--color-rascal-text);
+  font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+
+/* Tauri custom-window drag region */
+[data-tauri-drag-region] {
+  -webkit-app-region: drag;
+}
+[data-tauri-drag-region] button {
+  -webkit-app-region: no-drag;
+}
+
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #2e2f3a;
+  border-radius: 4px;
+}
