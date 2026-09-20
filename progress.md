@@ -311,3 +311,9 @@
 - Housekeeping: junk files deleted before commit (never pushed), token
   stripped from git remote. Token used had full scopes - rotate it to minimal
   scopes in GitHub settings when convenient.
+
+## 2026-09-20 - voice confirmed LIVE laptop-to-laptop
+- v0.1.5: relay rotation (mostr/artio out, purplerelay/mostro in), photo proof of image+text in chat.
+- v0.1.6: security audit (stored-XSS fixed, CSP, plugin trim, relay-only IP mode), SECURITY.md on GitHub.
+- v0.1.7: voice media actually flows (reshare on join), proven with fake-mic E2E.
+- User confirmation: LIVE 1:1 VOICE CALL works between the two laptops.
