@@ -74,6 +74,8 @@ export interface Settings {
   turnUrl: string
   turnUser: string
   turnPass: string
+  /** Force all WebRTC through TURN so peers never see your IP (needs TURN). */
+  hideIp: boolean
   theme: ThemeName
   soundPack: SoundPackName
   /** Per-event custom sound (IndexedDB file id). Empty = synth default. */
@@ -290,6 +292,7 @@ export const useApp = create<AppState>((set) => ({
     turnUrl: '',
     turnUser: '',
     turnPass: '',
+    hideIp: false,
     theme: 'dark' as const,
     soundPack: 'default' as const,
     customSounds: {},

@@ -1,6 +1,6 @@
 [package]
 name = "rascals"
-version = "0.1.5"
+version = "0.1.6"
 description = "Rascals — private peer-to-peer chat for Windows 11"
 authors = ["Rascals"]
 edition = "2021"
@@ -12,12 +12,9 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-autostart = "2"
-tauri-plugin-dialog = "2"
-tauri-plugin-single-instance = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-process = "2"
-tauri-plugin-sql = { version = "2", features = ["sqlite"] }
-tauri-plugin-store = "2"
+tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

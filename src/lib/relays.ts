@@ -34,6 +34,7 @@ export interface RoomOpts {
   appId: string
   relayConfig: { urls: string[]; redundancy: number }
   turnConfig?: TurnServer[]
+  rtcConfig?: { iceTransportPolicy?: RTCIceTransportPolicy }
 }
 
 export function roomOpts(): RoomOpts {
@@ -50,6 +51,11 @@ export function roomOpts(): RoomOpts {
         credential: t.turnPass || undefined,
       },
     ]
+    // Relay-only: no host/srflx candidates, so peers never learn your IP.
+    // Useless without TURN (nothing to relay through), hence the coupling.
+    if (t.hideIp) {
+      opts.rtcConfig = { iceTransportPolicy: 'relay' }
+    }
   }
   return opts
 }

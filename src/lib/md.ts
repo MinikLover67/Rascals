@@ -15,10 +15,15 @@ export function renderMarkdown(src: string): string {
       (_m: string, i: string) => stash[Number(i)] ?? '',
     )
 
+  // Escape HTML metacharacters AND quotes: URLs are interpolated into
+  // double-quoted href attributes below, so an unescaped " breaks out into
+  // event-handler injection (stored XSS — see SECURITY.md audit A1).
   let esc = src
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 
   esc = esc.replace(/`([^`\n]+)`/g, (_m: string, code: string) =>
     keep(`<code class="rounded bg-black/30 px-1 font-mono text-[12px]">${code}</code>`),

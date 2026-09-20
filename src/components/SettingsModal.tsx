@@ -280,6 +280,22 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             className="flex-1 rounded-lg border border-rascal-line bg-rascal-bg px-3 py-1.5 font-mono text-xs outline-none focus:border-rascal-accent"
           />
         </div>
+        <label className="mt-2 flex cursor-pointer items-start gap-2 text-xs" title="Force all calls and chats through TURN so peers never see your IP address. Needs a TURN server above, and uses more relay bandwidth.">
+          <input
+            type="checkbox"
+            checked={settings.hideIp}
+            disabled={!turnUrl.trim() && !settings.turnUrl.trim()}
+            onChange={(e) => setSettings({ hideIp: e.target.checked })}
+            className="mt-0.5 accent-[#7c6cff]"
+          />
+          <span>
+            Hide my IP from peers (relay everything through TURN)
+            <span className="block text-[11px] text-rascal-dim">
+              Without this, anyone you connect to can see your IP address - normal for
+              calls and P2P apps, but good to know. Needs TURN configured above.
+            </span>
+          </span>
+        </label>
         <button
           onClick={saveVoice}
           className="mt-2 w-full rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold hover:bg-white/15"

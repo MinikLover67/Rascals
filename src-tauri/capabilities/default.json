@@ -12,9 +12,6 @@
     "core:tray:default",
     "autostart:default",
     "notification:default",
-    "store:default",
-    "dialog:default",
-    "sql:default",
     "updater:default",
     "process:default"
   ]
