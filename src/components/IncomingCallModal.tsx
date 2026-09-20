@@ -42,6 +42,7 @@ export default function IncomingCallModal() {
           <button
             onClick={() => void accept()}
             disabled={busy}
+            data-testid="accept-call"
             className="flex-1 rounded-xl bg-rascal-green px-3 py-2 text-sm font-semibold text-black disabled:opacity-40"
           >
             {busy ? 'Joining...' : 'Accept'}

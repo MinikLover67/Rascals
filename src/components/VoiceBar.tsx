@@ -69,6 +69,7 @@ export default function VoiceBar() {
           else void api?.leaveChannel().catch(() => {})
         }}
         title="Leave"
+        data-testid="leave-call"
         className="rounded-lg bg-red-500/80 px-3 py-1 text-xs font-semibold text-white hover:bg-red-500"
       >
         Leave

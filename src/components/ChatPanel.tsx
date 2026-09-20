@@ -313,6 +313,7 @@ function VoiceHeaderButton({ chatKey, isGroup, title }: { chatKey: string; isGro
             })
           }}
           disabled={!!inCallWith}
+          data-testid="call-button"
           className="rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-white disabled:opacity-50"
           title={inCallWith ? 'In call (controls below)' : 'Start a voice call'}
         >

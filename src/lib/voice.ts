@@ -258,6 +258,28 @@ export function bindVoice(deps: VoiceDeps) {
         setParts(parts)
       }
       r.onPeerJoin = (peerId: string) => {
+        // New handshake = fresh connection: (re)share our current local
+        // media with exactly this peer. Targeted sends avoid duplicates.
+        // (Trystero only applies addStream/addTrack to CURRENT peers, so a
+        // newcomer would otherwise never receive previously-added streams.)
+        if (localStream) {
+          try {
+            const proms = r.addStream(localStream, { target: peerId })
+            void Promise.all(proms.map((p) => p.catch(() => {})))
+          } catch {
+            // will retry on next join event
+          }
+        }
+        if (screenStream) {
+          for (const track of screenStream.getVideoTracks()) {
+            try {
+              const proms = r.addTrack(track, screenStream, { target: peerId })
+              void Promise.all(proms.map((p) => p.catch(() => {})))
+            } catch {
+              // will retry on next join event
+            }
+          }
+        }
         void broadcastHello(peerId)
       }
       r.onPeerLeave = (peerId: string) => {
