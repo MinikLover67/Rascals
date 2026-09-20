@@ -263,6 +263,20 @@
   https://files.catbox.moe/xot0xv.zip
 - This PC updated to 0.1.3 and smoke-tested. Code pushed to main.
 
+## 2026-09-20 - v0.1.5: image proof + relay rotation, live now
+- Photo proof (proof-chat.png): two real peers, text + red R! image delivered
+  and rendered in-chat, verified pixel-level (naturalWidth) before screenshotting.
+- Honest debugging notes: an early screenshot showed a broken image — root
+  cause was my corrupt hand-made test PNG (zlib fails), NOT the app: the
+  pipeline delivered all 79 bytes exactly (verified header hex). Proof rig now
+  paints guaranteed-valid PNGs in-browser; fixtures like that can never lie again.
+- Relay churn: mostr.pub died (301s then dead), artio flaky — rotated to
+  purplerelay.com + mostro.network (both probe-verified writable). E2E passes
+  with zero warnings.
+- Published as GitHub release v0.1.5 (4 assets). Direct zip:
+  https://files.catbox.moe/y657h9.zip
+- This PC updated to 0.1.5 and smoke-tested. Code pushed to main.
+
 ## 2026-09-19 - v0.1.4: core loop hardened (friends + files)
 - Friend removal overhaul: confirm dialog, full DM-room disconnect (removed
   peers are actually cut off — previously the room stayed open), typing
