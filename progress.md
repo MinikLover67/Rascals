@@ -263,6 +263,15 @@
   https://files.catbox.moe/xot0xv.zip
 - This PC updated to 0.1.3 and smoke-tested. Code pushed to main.
 
+## 2026-09-20 - v0.1.6: security audit fixes, live now
+- Self-audit with live PoCs: stored-XSS via quote breakout PROVEN executing
+  (alert fired in victim), fixed with quote escaping + desktop CSP second
+  layer + removed 3 unused native plugins (sql/dialog/store). IP exposure
+  answered honestly + relay-only hiding mode shipped. Full report: SECURITY.md.
+- Published as GitHub release v0.1.6 (4 assets, latest.json serving 0.1.6).
+  Direct zip: https://files.catbox.moe/73w0v0.zip
+- This PC updated to 0.1.6 and smoke-tested. Code pushed to main.
+
 ## 2026-09-20 - v0.1.5: image proof + relay rotation, live now
 - Photo proof (proof-chat.png): two real peers, text + red R! image delivered
   and rendered in-chat, verified pixel-level (naturalWidth) before screenshotting.
