@@ -5,17 +5,19 @@ import { schnorr } from '@noble/secp256k1'
 
 const CANDIDATES = [
   'wss://nos.lol',
-  'wss://relay.damus.io',
   'wss://relay.mostr.pub',
   'wss://relay.primal.net',
-  'wss://relay.nostr.band',
   'wss://relay.snort.social',
-  'wss://nostr.wine',
-  'wss://relay.noswhere.com',
   'wss://yabu.me',
   'wss://chorus.pjv.me',
   'wss://relay.artio.inf.unibe.ch',
   'wss://nostr.data.haus',
+  'wss://purplerelay.com',
+  'wss://relay.mostro.network',
+  'wss://relay.sigit.io',
+  'wss://relay02.lnfi.network',
+  'wss://schnorr.me',
+  'wss://strfry.shock.network',
 ]
 
 const sk = crypto.getRandomValues(new Uint8Array(32))

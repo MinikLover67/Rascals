@@ -18,6 +18,7 @@ src-tauri/gen
 release/
 send-message.png
 e2e-fail-*.png
+e2e-files.png
 
 # Editor directories and files
 .vscode/*
