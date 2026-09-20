@@ -286,6 +286,21 @@
   https://files.catbox.moe/y657h9.zip
 - This PC updated to 0.1.5 and smoke-tested. Code pushed to main.
 
+## 2026-09-20 - v0.1.7: crash fix + identity control, live now
+- Crash root cause (from laptop2's exact error text): my new CSP blocked
+  WebAssembly, which kills libsodium — every crypto action died. Fixed with
+  `wasm-unsafe-eval` (allows WASM, still blocks eval/inline handlers).
+  Proven, not guessed: full crypto E2E re-run under the exact production CSP.
+- Display name changeable anytime in Settings > Profile. Identity backup to
+  text/file + restore on the welcome screen and in Settings (validated with a
+  real keypair check before trusting the file) — reruns of the update-wipe
+  scare are now a 30-second restore.
+- Published as GitHub release v0.1.7 (4 assets, serving 0.1.7). Direct zip:
+  https://files.catbox.moe/pene6o.zip
+- This PC updated to 0.1.7 and smoke-tested. Code pushed to main.
+- Note: update wiped nothing by itself (no wiping code exists) — most likely
+  the crashed session left the profile in a confusing state. Backup covers it.
+
 ## 2026-09-19 - v0.1.4: core loop hardened (friends + files)
 - Friend removal overhaul: confirm dialog, full DM-room disconnect (removed
   peers are actually cut off — previously the room stayed open), typing
