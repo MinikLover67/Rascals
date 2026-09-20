@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { exportIdentity, importIdentity, renameIdentity } from '../lib/identity'
 import { getVoice } from '../lib/session'
 import { checkForUpdates } from '../lib/updater'
 import { clearCustomSound, importCustomSound, playSound } from '../lib/sound'
@@ -124,6 +125,8 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             Close
           </button>
         </div>
+
+        <ProfileSection />
 
         <div className={h}>Appearance</div>
         <div className="mt-2 flex gap-2">
@@ -434,6 +437,123 @@ function ConnectionSection() {
           {copied ? 'Copied' : 'Copy diagnostics'}
         </button>
       </div>
+    </div>
+  )
+}
+
+function ProfileSection() {
+  const identity = useApp((s) => s.identity)
+  const setIdentity = useApp((s) => s.setIdentity)
+  const [name, setName] = useState(identity?.name ?? '')
+  const [msg, setMsg] = useState<string | null>(null)
+  const [backup, setBackup] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  if (!identity) return null
+
+  async function saveName() {
+    setMsg(null)
+    const updated = await renameIdentity(name).catch(() => null)
+    if (!updated) {
+      setMsg('Name cannot be empty.')
+      return
+    }
+    setIdentity(updated)
+    setMsg('Name updated everywhere (your keys never change).')
+  }
+
+  async function showBackup() {
+    setMsg(null)
+    const text = await exportIdentity().catch(() => null)
+    if (!text) {
+      setMsg('No identity to back up.')
+      return
+    }
+    setBackup(text)
+  }
+
+  async function doImport(files: FileList | null) {
+    if (!files || files.length === 0) return
+    setMsg(null)
+    setBackup(null)
+    try {
+      const text = await files[0].text()
+      const id = await importIdentity(text)
+      if (!id) {
+        setMsg('That file is not a valid Rascals identity backup.')
+        return
+      }
+      setIdentity(id)
+      setMsg('Identity restored. Restart the app to reconnect as yourself.')
+    } catch {
+      setMsg('Could not read that file.')
+    } finally {
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  async function copyBackup() {
+    if (!backup) return
+    try {
+      await navigator.clipboard.writeText(backup)
+      setMsg('Backup copied - paste it somewhere safe (it holds your secret key).')
+    } catch {
+      setMsg('Clipboard unavailable - select the text manually.')
+    }
+  }
+
+  return (
+    <div>
+      <div className="mt-5 text-xs font-semibold uppercase tracking-wider text-rascal-dim">
+        Profile
+      </div>
+      <label className="mt-2 block text-xs text-rascal-dim">Display name (change anytime)</label>
+      <div className="mt-1 flex gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && void saveName()}
+          className="flex-1 rounded-lg border border-rascal-line bg-rascal-bg px-3 py-1.5 text-sm outline-none focus:border-rascal-accent"
+        />
+        <button
+          onClick={() => void saveName()}
+          className="rounded-lg bg-rascal-accent px-3 py-1.5 text-sm font-semibold text-white"
+        >
+          Save
+        </button>
+      </div>
+      <div className="mt-2 flex gap-2">
+        <button
+          onClick={() => void showBackup()}
+          title="Show your identity backup text (contains your secret key - keep it private)"
+          className="flex-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/15"
+        >
+          Back up identity
+        </button>
+        <button
+          onClick={() => fileRef.current?.click()}
+          title="Restore from a backup file"
+          className="flex-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/15"
+        >
+          Restore backup
+        </button>
+        <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => void doImport(e.target.files)} />
+      </div>
+      {backup && (
+        <div className="mt-2">
+          <textarea
+            readOnly
+            value={backup}
+            rows={4}
+            onFocus={(e) => e.target.select()}
+            className="w-full rounded-lg border border-rascal-line bg-rascal-bg p-2 font-mono text-[10px] outline-none"
+          />
+          <button onClick={() => void copyBackup()} className="mt-1 text-xs text-rascal-dim underline underline-offset-2 hover:text-white">
+            copy to clipboard
+          </button>
+        </div>
+      )}
+      {msg && <p className="mt-2 text-[11px] text-rascal-dim">{msg}</p>}
     </div>
   )
 }

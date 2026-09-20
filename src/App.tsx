@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ChatPanel from './components/ChatPanel'
 import CreateServerModal from './components/CreateServerModal'
 import FriendsPanel from './components/FriendsPanel'
@@ -8,15 +8,16 @@ import ServerChannels from './components/ServerChannels'
 import TitleBar from './components/TitleBar'
 import UpdateBanner from './components/UpdateBanner'
 import VoiceBar from './components/VoiceBar'
-import { checkForUpdates } from './lib/updater'
-import { ensureIdentity, type Identity } from './lib/identity'
+import { ensureIdentity, importIdentity, type Identity } from './lib/identity'
 import { getVoice, startSession, stopSession } from './lib/session'
+import { checkForUpdates } from './lib/updater'
 import { groupChatKey, useApp } from './store/app'
 
 function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   async function create() {
     if (!name.trim()) return
@@ -30,6 +31,22 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function restore(files: FileList | null) {
+    if (!files || files.length === 0) return
+    setBusy(true)
+    setError(null)
+    try {
+      const id = await importIdentity(await files[0].text())
+      if (id) onDone(id)
+      else setError('That file is not a valid Rascals identity backup.')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+      if (fileRef.current) fileRef.current.value = ''
     }
   }
 
@@ -61,6 +78,16 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
         >
           {busy ? 'Creating identity…' : 'Create my identity'}
         </button>
+        <div className="mt-3 text-center">
+          <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => void restore(e.target.files)} />
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            className="text-xs text-rascal-dim underline underline-offset-2 hover:text-white disabled:opacity-40"
+          >
+            or restore from a backup file
+          </button>
+        </div>
       </div>
     </div>
   )
