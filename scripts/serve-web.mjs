@@ -1,10 +1,15 @@
 // Serves the static web build (dist-web) on Windows and Linux with no
 // extra dependencies. SPA fallback serves index.html for unknown paths.
+// Web auto-login: if the desktop app published a login (weblink.json in its
+// private app-data dir), it is served at /rascals-account.json so browsers
+// on THIS machine sign in automatically. Localhost only, never cached.
 // Usage: node scripts/serve-web.mjs [--dir dist-web] [--port 4173] [--host 127.0.0.1]
+//        [--account-file PATH] [--no-account]
 import { createServer } from 'node:http'
 import { stat } from 'node:fs/promises'
-import { createReadStream } from 'node:fs'
+import { createReadStream, readFileSync } from 'node:fs'
 import { extname, join, normalize, resolve, sep } from 'node:path'
+import { homedir, platform } from 'node:os'
 
 const args = process.argv.slice(2)
 function flag(name, fallback) {
@@ -15,6 +20,25 @@ function flag(name, fallback) {
 const root = resolve(flag('--dir', 'dist-web'))
 const port = Number(flag('--port', process.env.PORT ?? '4173'))
 const host = flag('--host', process.env.HOST ?? '127.0.0.1')
+const noAccount = args.includes('--no-account')
+
+// Same location the desktop app (Tauri app_data_dir, identifier
+// com.rascals.chat) writes weblink.json to. Same OS user only.
+function defaultAccountFile() {
+  if (process.env.RASCALS_ACCOUNT_FILE) return resolve(process.env.RASCALS_ACCOUNT_FILE)
+  const override = flag('--account-file', '')
+  if (override) return resolve(override)
+  if (platform() === 'win32' && process.env.APPDATA) {
+    return join(process.env.APPDATA, 'com.rascals.chat', 'weblink.json')
+  }
+  if (platform() === 'darwin') {
+    return join(homedir(), 'Library', 'Application Support', 'com.rascals.chat', 'weblink.json')
+  }
+  const xdg = process.env.XDG_DATA_HOME || join(homedir(), '.local', 'share')
+  return join(xdg, 'com.rascals.chat', 'weblink.json')
+}
+
+const accountFile = noAccount ? null : defaultAccountFile()
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -47,6 +71,27 @@ async function sendFile(res, path) {
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? '/', 'http://localhost')
+    // Desktop-published auto-login. Same-origin fetch from the web app;
+    // never cached, 404 when the desktop hasn't enabled it.
+    if (url.pathname === '/rascals-account.json') {
+      if (!accountFile) {
+        res.writeHead(404).end('auto-login disabled')
+        return
+      }
+      try {
+        const text = readFileSync(accountFile, 'utf8')
+        // Refuse to serve anything that isn't our own backup format.
+        const parsed = JSON.parse(text)
+        if (!parsed || parsed.app !== 'rascals-identity' || typeof parsed.identity !== 'object') {
+          throw new Error('bad shape')
+        }
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+        res.end(text)
+      } catch {
+        res.writeHead(404).end('no desktop login published')
+      }
+      return
+    }
     let rel = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '')
     // Block path traversal — stay inside the web root.
     const file = resolve(join(root, rel))
@@ -87,4 +132,14 @@ try {
 
 server.listen(port, host, () => {
   console.log(`Rascals web: http://${host === '0.0.0.0' ? 'localhost' : host}:${port} (serving ${root})`)
+  try {
+    if (accountFile) {
+      stat(accountFile).then(
+        () => console.log('Web auto-login: ON (desktop login found)'),
+        () => console.log('Web auto-login: off (enable it in desktop Settings)'),
+      )
+    }
+  } catch {
+    // status line is garnish
+  }
 })

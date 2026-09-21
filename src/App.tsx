@@ -10,6 +10,7 @@ import UpdateBanner from './components/UpdateBanner'
 import VoiceBar from './components/VoiceBar'
 import { ensureIdentity, importIdentity, type Identity } from './lib/identity'
 import { isWeb } from './lib/platform'
+import { fetchWeblinkIdentity, publishWeblink } from './lib/weblink'
 import { getVoice, startSession, stopSession } from './lib/session'
 import { checkForUpdates } from './lib/updater'
 import { groupChatKey, useApp } from './store/app'
@@ -55,6 +56,39 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
     if (id) onDone(id)
     else setError('That is not a valid Rascals identity backup.')
   }
+
+  // One-click account link: the desktop app copies the backup to the
+  // clipboard, the browser reads it back (permission prompt) — no typing.
+  async function restoreFromClipboard(): Promise<void> {
+    setBusy(true)
+    setError(null)
+    try {
+      const text = await navigator.clipboard.readText()
+      if (!text.trim()) {
+        setShowPaste(true)
+        setError('Clipboard is empty — copy the backup in the desktop app first.')
+        return
+      }
+      await restoreText(text.trim())
+      // restoreText only sets an error on failure; reveal manual box then.
+      setShowPaste(true)
+    } catch {
+      setShowPaste(true)
+      setError('Browser blocked clipboard access — allow it or paste manually below.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Desktop "open web app" links here: auto-expand + try the clipboard once.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#link') {
+      window.location.hash = ''
+      setShowPaste(true)
+      void restoreFromClipboard()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="flex flex-1 items-center justify-center p-8">
@@ -106,9 +140,17 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
           <div className="mt-3 rounded-lg border border-rascal-line bg-rascal-bg p-3">
             <p className="text-[11px] text-rascal-dim">
               Already have Rascals on this PC? In the desktop app open Settings →
-              Profile → Back up identity → copy, then paste it here. Same account,
+              Profile → Back up identity → copy, then one click here. Same account,
               same friends — the web app just borrows it.
             </p>
+            <button
+              onClick={() => void restoreFromClipboard()}
+              disabled={busy}
+              data-testid="onboard-clipboard"
+              className="mt-2 w-full rounded-lg bg-rascal-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              {busy ? 'Reading clipboard…' : 'Read backup from clipboard'}
+            </button>
             <textarea
               value={pasted}
               onChange={(e) => setPasted(e.target.value)}
@@ -263,8 +305,18 @@ export default function App() {
   useEffect(() => {
     let cancelled = false
     ensureIdentity()
-      .then((id) => {
-        if (!cancelled && id) setIdentity(id)
+      .then(async (id) => {
+        if (cancelled) return
+        if (id) {
+          setIdentity(id)
+          return
+        }
+        // Web with no identity of its own: try the desktop-published login.
+        // Zero clicks when the desktop app enabled web auto-login on this PC.
+        if (isWeb()) {
+          const linked = await fetchWeblinkIdentity().catch(() => null)
+          if (!cancelled && linked) setIdentity(linked)
+        }
       })
       .catch(() => {})
       .finally(() => {
@@ -274,6 +326,15 @@ export default function App() {
       cancelled = true
     }
   }, [setIdentity])
+
+  // Desktop: always publish the login for web auto-login (silent, idempotent).
+  // No toggle, no UI — browsers on this PC just open already signed in.
+  useEffect(() => {
+    if (!identity || isWeb()) return
+    void publishWeblink().catch(() => {
+      // disk hiccup — next boot retries
+    })
+  }, [identity])
 
   // Start / stop the P2P session with the identity's lifetime.
   useEffect(() => {

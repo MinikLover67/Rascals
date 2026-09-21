@@ -59,15 +59,13 @@ build), notifications use the browser permission prompt.
 
 ### Same account as desktop
 
-The web app keeps its own storage per browser, so first open shows the
-welcome screen. To use the account already on the PC instead of making a
-new one:
+Nothing to do: the desktop app shares your login with this PC on every
+start, and the web app signs in as you automatically — no login screen.
+(Backup plan if it ever asks: desktop Settings → Profile → Back up identity
+→ copy; web welcome screen → **use my desktop account** → paste.)
 
-1. In the desktop app: Settings → Profile → Back up identity → copy.
-2. In the web app welcome screen: **use my desktop account** → paste → Use this account.
-
-Same keys, same friends. (The backup text holds your secret key — never
-send it to anyone.)
+The shared login lives in the desktop's private app-data dir and is served
+on localhost only — same keys, same friends, never leaves the machine.
 
 ## How updates work
 

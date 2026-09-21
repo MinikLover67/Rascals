@@ -558,8 +558,8 @@ function ProfileSection() {
             copy to clipboard
           </button>
           <p className="mt-1 text-[11px] text-rascal-dim">
-            To use this same account in the web app: copy it, open the web app
-            (welcome screen → “use my desktop account”), and paste it there.
+            The web app on this PC signs in as you on its own. If it ever
+            asks, copy this and paste it on its welcome screen.
           </p>
         </div>
       )}
