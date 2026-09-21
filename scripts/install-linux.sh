@@ -18,6 +18,8 @@ DESKTOP_DIR="$HOME/.local/share/applications"
 ICON_DIR="$HOME/.local/share/icons/hicolor/128x128/apps"
 
 echo "==> Rascals installer (Arch Linux)"
+echo "    NOTE: Linux support is new and tested by build, not yet on real"
+echo "    Arch/KDE hardware. If anything misbehaves, report it on GitHub."
 
 # 1. System dependencies (needs sudo once).
 if ! pacman -Q webkit2gtk-4.1 fuse2 >/dev/null 2>&1; then

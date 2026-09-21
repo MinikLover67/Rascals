@@ -22,6 +22,9 @@ signed AppImage, puts it in `~/Applications`, and adds Rascals to the app
 menu. Updates then arrive inside the app like on Windows. Re-run the same
 line any time to repair or jump releases.
 
+> Linux support is young: the AppImage is built and smoke-checked in CI, but
+> not yet battle-tested on real Arch/KDE hardware. Report issues on GitHub.
+
 Requirements: Arch-based distro with `pacman` + `sudo`, 64-bit x86.
 
 ## How updates work
