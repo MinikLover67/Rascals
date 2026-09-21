@@ -317,3 +317,14 @@
 - v0.1.6: security audit (stored-XSS fixed, CSP, plugin trim, relay-only IP mode), SECURITY.md on GitHub.
 - v0.1.7: voice media actually flows (reshare on join), proven with fake-mic E2E.
 - User confirmation: LIVE 1:1 VOICE CALL works between the two laptops.
+
+## Linux support (Arch one-liner + CI builds) — verified live
+- `.github/workflows/release.yml`: signed AppImage + deb builds on version
+  tags (plus manual dispatch for testing). Signing keys sealed into GitHub
+  Secrets from the local keypair.
+- `scripts/install-linux.sh`: the one-liner — pacman deps (webkit2gtk, fuse2),
+  newest signed AppImage to ~/Applications, start-menu entry + icon.
+- Real verification, not promises: first CI run failed on a genuinely missing
+  dep (esbuild, now declared), second run went fully green including signing.
+- Caught along the way: .sh files need forced LF endings (.gitattributes),
+  or git would ship them broken to Linux.
