@@ -1,6 +1,6 @@
 [package]
 name = "rascals"
-version = "0.1.9"
+version = "0.1.10"
 description = "Rascals — private peer-to-peer chat for Windows and Linux"
 authors = ["Rascals"]
 edition = "2021"
