@@ -172,6 +172,111 @@ export async function applyWeblinkSnapshot(): Promise<boolean> {
   }
 }
 
+/** Web only: drop this browser's account so the next boot pulls the desktop
+ * snapshot (friends, groups, history and all). Fixes being stuck on a stray
+ * web-only identity. Reloads when done. Never throws (reloads regardless). */
+export async function replaceWithDesktopAccount(): Promise<void> {
+  try {
+    const gone: string[] = []
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith('rascals.')) gone.push(k)
+    }
+    for (const k of gone) {
+      try {
+        localStorage.removeItem(k)
+      } catch {
+        // keep going — best effort
+      }
+    }
+    try {
+      sessionStorage.clear()
+    } catch {
+      // private mode — boot guard just retries once
+    }
+    // Drop cached blobs too (orphaned without their account); best effort.
+    try {
+      const dbs = await indexedDB.databases()
+      await Promise.all(
+        dbs
+          .map((d) => d.name)
+          .filter((n): n is string => typeof n === 'string' && n.toLowerCase().includes('rascals'))
+          .map(
+            (n) =>
+              new Promise<void>((resolve) => {
+                try {
+                  const req = indexedDB.deleteDatabase(n)
+                  req.onsuccess = () => resolve()
+                  req.onerror = () => resolve()
+                  req.onblocked = () => resolve()
+                } catch {
+                  resolve()
+                }
+              }),
+          ),
+      )
+    } catch {
+      // indexedDB unavailable — blobs simply stay orphaned
+    }
+  } finally {
+    window.location.reload()
+  }
+}
+
+/** Web only: peek at the desktop snapshot without writing anything. */
+export async function describeSnapshot(): Promise<{ friends: number; sameIdentity: boolean } | null> {
+  try {
+    const res = await fetch(WEBLINK_URL, { cache: 'no-store' })
+    if (!res.ok) return null
+    const text = await res.text()
+    if (!text || text.length > MAX_SNAPSHOT_BYTES) return null
+    const parsed = JSON.parse(text) as unknown
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const o = parsed as Record<string, unknown>
+    if (o.app !== 'rascals-snapshot' || typeof o.data !== 'object' || o.data === null) return null
+    const data = o.data as Record<string, unknown>
+    const idRaw = data['rascals.identity.v1']
+    if (typeof idRaw !== 'string') return null
+    let snapUserId = ''
+    try {
+      snapUserId = (JSON.parse(idRaw) as { userId?: unknown }).userId as string
+    } catch {
+      return null
+    }
+    if (typeof snapUserId !== 'string' || !snapUserId) return null
+    let friends = 0
+    try {
+      const fr = data['rascals.friends.v1']
+      if (typeof fr === 'string') {
+        const arr = JSON.parse(fr) as unknown
+        if (Array.isArray(arr)) friends = arr.length
+      }
+    } catch {
+      friends = 0
+    }
+    let mine = ''
+    try {
+      mine = readLocalUserId()
+    } catch {
+      mine = ''
+    }
+    return { friends, sameIdentity: mine !== '' && mine === snapUserId }
+  } catch {
+    return null
+  }
+}
+
+function readLocalUserId(): string {
+  try {
+    const raw = localStorage.getItem('rascals.identity.v1')
+    if (!raw) return ''
+    const id = JSON.parse(raw) as { userId?: unknown }
+    return typeof id.userId === 'string' ? id.userId : ''
+  } catch {
+    return ''
+  }
+}
+
 /** Web only: fetch the desktop-published login identity, if the server has one. */
 export async function fetchWeblinkIdentity(): Promise<Identity | null> {
   try {

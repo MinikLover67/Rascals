@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type DragEvent } from 'react'
 import ChatPanel from './components/ChatPanel'
 import CreateServerModal from './components/CreateServerModal'
 import FriendsPanel from './components/FriendsPanel'
@@ -10,7 +10,8 @@ import UpdateBanner from './components/UpdateBanner'
 import VoiceBar from './components/VoiceBar'
 import { ensureIdentity, importIdentity, type Identity } from './lib/identity'
 import { isWeb } from './lib/platform'
-import { applyWeblinkSnapshot, fetchWeblinkIdentity, publishWeblink } from './lib/weblink'
+import { applyWeblinkSnapshot, describeSnapshot, fetchWeblinkIdentity, publishWeblink, replaceWithDesktopAccount } from './lib/weblink'
+import { emitDropFiles } from './lib/dropfiles'
 import { getVoice, startSession, stopSession } from './lib/session'
 import { checkForUpdates } from './lib/updater'
 import { groupChatKey, useApp } from './store/app'
@@ -178,6 +179,42 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
   )
 }
 
+// Web only, empty account: the desktop snapshot has friends this browser
+// doesn't — offer a one-click pull instead of a bare "add a friend".
+function EmptyAccountCTA() {
+  const [info, setInfo] = useState<{ friends: number } | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    void describeSnapshot()
+      .then((d) => {
+        if (live && d && !d.sameIdentity && d.friends > 0) setInfo({ friends: d.friends })
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [])
+
+  if (!info) return null
+  return (
+    <button
+      onClick={() => {
+        setBusy(true)
+        void replaceWithDesktopAccount()
+      }}
+      disabled={busy}
+      data-testid="pull-desktop-account"
+      className="mx-auto mt-4 block max-w-md rounded-xl border border-rascal-accent/50 bg-rascal-accent/10 px-4 py-2.5 text-sm font-semibold hover:bg-rascal-accent/20 disabled:opacity-50"
+    >
+      {busy
+        ? 'Bringing in your account…'
+        : `Your desktop has ${info.friends} friend${info.friends === 1 ? '' : 's'} — bring them here`}
+    </button>
+  )
+}
+
 function MainPanel() {
   const friends = useApp((s) => s.friends)
   const groups = useApp((s) => s.groups)
@@ -220,6 +257,7 @@ function MainPanel() {
             ? 'Add a friend to get started.'
             : 'Pick a friend, group, or server to open the conversation.'}
         </p>
+        {friends.length === 0 && isWeb() && <EmptyAccountCTA />}
         <p className="mx-auto mt-2 max-w-md">
           Share your invite code with someone else running Rascals. When
           you're both online you'll see each other light up green — no
@@ -415,9 +453,93 @@ export default function App() {
     void checkForUpdates(false)
   }, [])
 
+  // Whole-window file drop: anywhere on screen sends to the open chat.
+  // The active key mirrors MainPanel exactly, so drops land where you look.
+  const dropFriends = useApp((s) => s.friends)
+  const dropGroups = useApp((s) => s.groups)
+  const dropSelFriend = useApp((s) => s.selectedFriend)
+  const dropSelGroup = useApp((s) => s.selectedGroup)
+  const [dragging, setDragging] = useState(false)
+  const [dropHint, setDropHint] = useState(false)
+  const dragDepth = useRef(0)
+  const hintTimer = useRef(0)
+
+  function dropChatKey(): string | null {
+    if (dropSelGroup && dropGroups[dropSelGroup]) return groupChatKey(dropSelGroup)
+    if (dropFriends.some((f) => f.userId === dropSelFriend)) return dropSelFriend
+    return null
+  }
+
+  function dropHasFiles(e: DragEvent): boolean {
+    try {
+      return Array.from(e.dataTransfer.types).includes('Files')
+    } catch {
+      return false
+    }
+  }
+
+  function onDragEnter(e: DragEvent) {
+    if (!identity || !dropHasFiles(e)) return
+    e.preventDefault()
+    dragDepth.current += 1
+    setDragging(true)
+  }
+
+  function onDragOver(e: DragEvent) {
+    if (!identity || (!dropHasFiles(e) && !dragging)) return
+    // Must cancel the default or the browser navigates to the file instead.
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+
+  function onDragLeave(e: DragEvent) {
+    if (!identity || (!dropHasFiles(e) && !dragging)) return
+    e.preventDefault()
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragging(false)
+  }
+
+  function onDrop(e: DragEvent) {
+    if (!identity) return
+    e.preventDefault()
+    dragDepth.current = 0
+    setDragging(false)
+    const files = e.dataTransfer.files
+    if (!files || files.length === 0) return
+    if (dropChatKey()) {
+      emitDropFiles(Array.from(files))
+    } else {
+      // Nowhere to send — say so briefly instead of swallowing the drop.
+      setDropHint(true)
+      window.clearTimeout(hintTimer.current)
+      hintTimer.current = window.setTimeout(() => setDropHint(false), 2500)
+    }
+  }
+
   return (
-    <div className="flex h-full flex-col bg-rascal-bg">
+    <div
+      className="relative flex h-full flex-col bg-rascal-bg"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
       <TitleBar />
+      {dragging && (
+        <div
+          className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center border-2 border-dashed border-rascal-accent bg-rascal-accent/10"
+          data-testid="drop-overlay"
+        >
+          <span className="rounded-xl bg-rascal-panel px-4 py-2 text-sm font-semibold">
+            {dropChatKey() ? 'Drop files to send — encrypted end to end' : 'Open a chat first to send files'}
+          </span>
+        </div>
+      )}
+      {dropHint && (
+        <div className="absolute bottom-16 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-rascal-panel px-4 py-2 text-sm font-semibold shadow-xl">
+          Open a chat first — then drop files anywhere to send them
+        </div>
+      )}
       {!ready ? (
         <div className="flex flex-1 items-center justify-center text-sm text-rascal-dim">
           Loading Rascals…

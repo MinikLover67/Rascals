@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { exportIdentity, importIdentity, renameIdentity } from '../lib/identity'
 import { appVersion as getAppVersion, isWeb } from '../lib/platform'
+import { replaceWithDesktopAccount } from '../lib/weblink'
 import { getVoice } from '../lib/session'
 import { checkForUpdates } from '../lib/updater'
 import { clearCustomSound, importCustomSound, playSound } from '../lib/sound'
@@ -508,6 +509,14 @@ function ProfileSection() {
     }
   }
 
+  // Web only: drop this browser's account so the next boot pulls the desktop
+  // snapshot (friends, groups, history and all). Fixes being stuck on a
+  // stray web-only identity. Reloads when done.
+  async function switchToDesktop() {
+    setMsg('Switching to the desktop account…')
+    await replaceWithDesktopAccount()
+  }
+
   return (
     <div>
       <div className="mt-5 text-xs font-semibold uppercase tracking-wider text-rascal-dim">
@@ -561,6 +570,21 @@ function ProfileSection() {
             The web app on this PC signs in as you on its own. If it ever
             asks, copy this and paste it on its welcome screen.
           </p>
+        </div>
+      )}
+      {isWeb() && (
+        <div className="mt-2 rounded-lg border border-rascal-line bg-rascal-bg p-2">
+          <p className="text-[11px] text-rascal-dim">
+            On the wrong account here (no friends)? One click replaces this
+            browser's account with the desktop one — friends, groups, history
+            and all.
+          </p>
+          <button
+            onClick={() => void switchToDesktop()}
+            className="mt-1.5 w-full rounded-lg bg-rascal-accent px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            Use desktop account instead
+          </button>
         </div>
       )}
       {msg && <p className="mt-2 text-[11px] text-rascal-dim">{msg}</p>}
