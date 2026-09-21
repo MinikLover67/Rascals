@@ -20,7 +20,7 @@ Living checklist of unfinished work. Checked items are done and proven.
 
 Core is DONE (E2EE 32 KB chunks, 25 MB cap, resume, thumbnails, IndexedDB cache, save-to-disk, proven peer-to-peer by `scripts/e2e-files.mjs`). Remaining polish:
 
-- [ ] Drag-and-drop files straight into the chat input
+- [x] Drag-and-drop files straight into the chat input
 - [ ] Paste images from clipboard to send
 - [ ] Better progress UI for large files (speed, ETA, cancel)
 - [ ] Raise or remove the 25 MB cap (chunking already supports it — mostly UI + testing)
@@ -50,6 +50,7 @@ files, voice, screenshare all run on browser APIs.
 - [x] `npm run web` / `web:host` / `serve:web` scripts, `dist-web` git-ignored
 - [x] CI `build-web` job attaches `rascals-web-*-static.zip` to tag releases
 - [x] `install-linux.sh --web` mode (zip → `~/Applications/rascals-web` + launcher + menu/shortcut)
+- [x] Zero-click auto-login: desktop publishes full account snapshot, web applies it on boot
 - [ ] Live two-browser test (Windows + Linux): add friend, message, file, call
 - [ ] Later: hosted URL vs local-only decision, PWA manifest/icons
 

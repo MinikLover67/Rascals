@@ -22,19 +22,24 @@ fn weblink_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(dir.join("weblink.json"))
 }
 
-// Web auto-login: the desktop app publishes its own identity backup to its
-// private app-data dir, where only this OS user (and their local web server)
-// can read it. The static web build fetches it from localhost and signs in
-// with zero clicks. Never leaves the machine.
+// Web auto-login: the desktop app publishes a snapshot of its whole account
+// (identity, friends, groups, history, settings) to its private app-data dir,
+// where only this OS user (and their local web server) can read it. The
+// static web build fetches it from localhost and signs in with zero clicks.
 #[tauri::command]
 fn write_weblink(app: tauri::AppHandle, contents: String) -> Result<(), String> {
-    if contents.len() > 16 * 1024 {
-        return Err("backup too large".into());
+    if contents.len() > 8 * 1024 * 1024 {
+        return Err("snapshot too large".into());
     }
-    // Only ever persist our own export format — never arbitrary text.
+    // Only ever persist our own formats — never arbitrary text.
     let v: serde_json::Value =
         serde_json::from_str(&contents).map_err(|_| "not a rascals backup".to_string())?;
-    if v.get("app") != Some(&serde_json::Value::String("rascals-identity".into())) {
+    let tag = v.get("app").and_then(|a| a.as_str()).unwrap_or("");
+    if tag == "rascals-snapshot" {
+        if v.get("data").and_then(|d| d.as_object()).is_none() {
+            return Err("snapshot has no data".into());
+        }
+    } else if tag != "rascals-identity" {
         return Err("not a rascals backup".into());
     }
     std::fs::write(weblink_path(&app)?, contents).map_err(|e| e.to_string())

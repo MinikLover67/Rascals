@@ -80,9 +80,12 @@ const server = createServer(async (req, res) => {
       }
       try {
         const text = readFileSync(accountFile, 'utf8')
-        // Refuse to serve anything that isn't our own backup format.
+        // Refuse to serve anything that isn't our own account format.
         const parsed = JSON.parse(text)
-        if (!parsed || parsed.app !== 'rascals-identity' || typeof parsed.identity !== 'object') {
+        if (!parsed || (parsed.app !== 'rascals-identity' && parsed.app !== 'rascals-snapshot')) {
+          throw new Error('bad shape')
+        }
+        if (parsed.app === 'rascals-snapshot' && (typeof parsed.data !== 'object' || !parsed.data)) {
           throw new Error('bad shape')
         }
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })

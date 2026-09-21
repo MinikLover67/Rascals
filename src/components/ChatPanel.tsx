@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import AttachmentCard from './AttachmentCard'
 import GifPicker from './GifPicker'
 import GroupInfoModal from './GroupInfoModal'
@@ -440,6 +440,13 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
     [chatKey, api],
   )
 
+  // Drag-and-drop anywhere over the chat (messages or input). A counter
+  // tracks nested dragenter/dragleave so the overlay doesn't flicker.
+  // Declared with the other hooks: below this point the component may
+  // return early, and hooks must run unconditionally.
+  const [dragging, setDragging] = useState(false)
+  const dragDepth = useRef(0)
+
   if (!identity) return null
   if (!friend && !group) return null
   const myId = identity.userId
@@ -483,7 +490,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
     }, 2500)
   }
 
-  async function onFiles(files: FileList | null) {
+  async function onFiles(files: FileList | File[] | null) {
     if (!files || files.length === 0) return
     setFileErr(null)
     for (const f of Array.from(files)) {
@@ -496,6 +503,45 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  // (drag state lives above the early returns)
+
+  function hasFiles(e: DragEvent): boolean {
+    try {
+      return Array.from(e.dataTransfer.types).includes('Files')
+    } catch {
+      return false
+    }
+  }
+
+  function onDragEnter(e: DragEvent) {
+    if (!hasFiles(e)) return
+    e.preventDefault()
+    dragDepth.current += 1
+    setDragging(true)
+  }
+
+  function onDragOver(e: DragEvent) {
+    if (!hasFiles(e) && !dragging) return
+    // Must cancel the default or the browser navigates to the file instead.
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+
+  function onDragLeave(e: DragEvent) {
+    if (!hasFiles(e) && !dragging) return
+    e.preventDefault()
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragging(false)
+  }
+
+  function onDrop(e: DragEvent) {
+    e.preventDefault()
+    dragDepth.current = 0
+    setDragging(false)
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) void onFiles(files)
+  }
+
   async function saveEdit() {
     if (!editing) return
     await api.sendEdit(chatKey, editing, editText).catch(() => {})
@@ -506,7 +552,23 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
   const replyMsg = replyTo ? byId.get(replyTo) : undefined
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div
+      className="relative flex min-w-0 flex-1 flex-col"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      {dragging && (
+        <div
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-rascal-accent bg-rascal-accent/10"
+          data-testid="drop-overlay"
+        >
+          <span className="rounded-xl bg-rascal-panel px-4 py-2 text-sm font-semibold">
+            Drop files to send — encrypted end to end
+          </span>
+        </div>
+      )}
       <div className="flex items-center gap-2 border-b border-rascal-line px-4 py-2.5">
         <span className={`h-2.5 w-2.5 rounded-full ${online ? 'bg-rascal-green' : 'bg-rascal-dim/40'}`} />
         <span className="text-sm font-semibold">{title}</span>
@@ -684,7 +746,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
         </div>
         {fileErr && <div className="mt-1 px-1 text-[11px] text-red-300">{fileErr}</div>}
         <div className="mt-1 px-1 text-[10px] text-rascal-dim">
-          Enter to send - Shift+Enter for newline - **bold** *italic* `code` - YouTube links embed on click
+          Enter to send - Shift+Enter for newline - drop files anywhere to send - **bold** *italic* `code` - YouTube links embed on click
         </div>
       </div>
       {gifOpen && <GifPicker chatKey={chatKey} onClose={() => setGifOpen(false)} />}

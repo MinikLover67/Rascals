@@ -59,8 +59,9 @@ build), notifications use the browser permission prompt.
 
 ### Same account as desktop
 
-Nothing to do: the desktop app shares your login with this PC on every
-start, and the web app signs in as you automatically — no login screen.
+Nothing to do: the desktop app shares your whole account with this PC on
+every start — identity, friends, groups, servers, history, settings — and
+the web app signs in with all of it automatically. No login screen.
 (Backup plan if it ever asks: desktop Settings → Profile → Back up identity
 → copy; web welcome screen → **use my desktop account** → paste.)
 

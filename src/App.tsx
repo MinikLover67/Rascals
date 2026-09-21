@@ -10,7 +10,7 @@ import UpdateBanner from './components/UpdateBanner'
 import VoiceBar from './components/VoiceBar'
 import { ensureIdentity, importIdentity, type Identity } from './lib/identity'
 import { isWeb } from './lib/platform'
-import { fetchWeblinkIdentity, publishWeblink } from './lib/weblink'
+import { applyWeblinkSnapshot, fetchWeblinkIdentity, publishWeblink } from './lib/weblink'
 import { getVoice, startSession, stopSession } from './lib/session'
 import { checkForUpdates } from './lib/updater'
 import { groupChatKey, useApp } from './store/app'
@@ -311,9 +311,17 @@ export default function App() {
           setIdentity(id)
           return
         }
-        // Web with no identity of its own: try the desktop-published login.
-        // Zero clicks when the desktop app enabled web auto-login on this PC.
+        // Web with no identity of its own: apply the desktop-published
+        // snapshot (identity, friends, groups, history, settings), then
+        // reload so the store boots with the transferred account. Zero clicks
+        // when the desktop app ran on this PC. The browser's own account,
+        // once set, always wins — this path only runs when it has none.
         if (isWeb()) {
+          const applied = await applyWeblinkSnapshot().catch(() => false)
+          if (!cancelled && applied) {
+            window.location.reload()
+            return
+          }
           const linked = await fetchWeblinkIdentity().catch(() => null)
           if (!cancelled && linked) setIdentity(linked)
         }
@@ -329,12 +337,24 @@ export default function App() {
 
   // Desktop: always publish the login for web auto-login (silent, idempotent).
   // No toggle, no UI — browsers on this PC just open already signed in.
+  // Re-publishes when account membership changes so new friends/groups
+  // transfer too (a plain string signal — presence flips don't rewrite).
+  // Live messages arrive over P2P once the web session is running anyway.
+  const pubSig = useApp((s) =>
+    [
+      ...s.friends.map((f) => f.userId),
+      ...Object.keys(s.groups),
+      ...Object.keys(s.servers),
+      ...s.requests.map((r) => r.userId),
+    ].join(','),
+  )
   useEffect(() => {
     if (!identity || isWeb()) return
     void publishWeblink().catch(() => {
-      // disk hiccup — next boot retries
+      // disk hiccup — next change or boot retries
     })
-  }, [identity])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identity, pubSig])
 
   // Start / stop the P2P session with the identity's lifetime.
   useEffect(() => {
