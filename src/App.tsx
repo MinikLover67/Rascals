@@ -18,6 +18,8 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pasted, setPasted] = useState('')
+  const [showPaste, setShowPaste] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function create() {
@@ -40,15 +42,18 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
     setBusy(true)
     setError(null)
     try {
-      const id = await importIdentity(await files[0].text())
-      if (id) onDone(id)
-      else setError('That file is not a valid Rascals identity backup.')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      await restoreText(await files[0].text())
     } finally {
       setBusy(false)
       if (fileRef.current) fileRef.current.value = ''
     }
+  }
+
+  // Shared by file restore and pasted-text restore (the web-app account link).
+  async function restoreText(text: string) {
+    const id = await importIdentity(text).catch(() => null)
+    if (id) onDone(id)
+    else setError('That is not a valid Rascals identity backup.')
   }
 
   return (
@@ -88,7 +93,44 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
           >
             or restore from a backup file
           </button>
+          <span className="mx-2 text-xs text-rascal-dim">·</span>
+          <button
+            onClick={() => setShowPaste((v) => !v)}
+            disabled={busy}
+            className="text-xs text-rascal-dim underline underline-offset-2 hover:text-white disabled:opacity-40"
+          >
+            use my desktop account
+          </button>
         </div>
+        {showPaste && (
+          <div className="mt-3 rounded-lg border border-rascal-line bg-rascal-bg p-3">
+            <p className="text-[11px] text-rascal-dim">
+              Already have Rascals on this PC? In the desktop app open Settings →
+              Profile → Back up identity → copy, then paste it here. Same account,
+              same friends — the web app just borrows it.
+            </p>
+            <textarea
+              value={pasted}
+              onChange={(e) => setPasted(e.target.value)}
+              placeholder='Paste the {"app":"rascals-identity",…} backup text'
+              rows={3}
+              data-testid="onboard-paste"
+              className="mt-2 w-full rounded-lg border border-rascal-line bg-rascal-panel p-2 font-mono text-[10px] outline-none focus:border-rascal-accent"
+            />
+            <button
+              onClick={() => {
+                setBusy(true)
+                setError(null)
+                void restoreText(pasted.trim()).finally(() => setBusy(false))
+              }}
+              disabled={busy || !pasted.trim()}
+              data-testid="onboard-use-pasted"
+              className="mt-2 w-full rounded-lg bg-rascal-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              {busy ? 'Checking…' : 'Use this account'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -557,6 +557,10 @@ function ProfileSection() {
           <button onClick={() => void copyBackup()} className="mt-1 text-xs text-rascal-dim underline underline-offset-2 hover:text-white">
             copy to clipboard
           </button>
+          <p className="mt-1 text-[11px] text-rascal-dim">
+            To use this same account in the web app: copy it, open the web app
+            (welcome screen → “use my desktop account”), and paste it there.
+          </p>
         </div>
       )}
       {msg && <p className="mt-2 text-[11px] text-rascal-dim">{msg}</p>}

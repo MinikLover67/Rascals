@@ -57,6 +57,18 @@ Differences from desktop: no window controls (use the browser's), no
 auto-launch or in-app updater (reload the page / re-run for the newest
 build), notifications use the browser permission prompt.
 
+### Same account as desktop
+
+The web app keeps its own storage per browser, so first open shows the
+welcome screen. To use the account already on the PC instead of making a
+new one:
+
+1. In the desktop app: Settings → Profile → Back up identity → copy.
+2. In the web app welcome screen: **use my desktop account** → paste → Use this account.
+
+Same keys, same friends. (The backup text holds your secret key — never
+send it to anyone.)
+
 ## How updates work
 
 Every copy polls `latest.json` on this repo (daily + on demand in Settings),
