@@ -1,0 +1,4 @@
+# Keep shell scripts working everywhere: bash needs LF, PowerShell likes CRLF.
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.mjs text eol=lf
