@@ -40,6 +40,32 @@ app identity that old installs will not trust.
 First-time friends still install from the setup exe once; every release after
 that arrives over the air.
 
+## Linux + web assets (CI on version tags)
+
+Pushing a `v*` tag runs `.github/workflows/release.yml`:
+
+- `build-linux`: signed AppImage + deb, plus the updater bundle
+  (`*.AppImage.tar.gz` + `.sig`) and a `latest-linux.json` fragment carrying
+  the `linux-x86_64` signature + asset URL.
+- `build-web`: static browser bundle `rascals-web-<tag>-static.zip`
+  (contents of `dist-web/`, served by `scripts/serve-web.mjs`).
+
+When publishing the GitHub release, upload those CI artifacts alongside
+`release/vX.Y.Z/*`. Then merge the linux entry into the release's
+`latest.json` (copy the `linux-x86_64` block from `latest-linux.json`), or
+pass it at build time:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1 `
+  -Version 0.1.9 -Notes "..." `
+  -LinuxSignature path/to/Rascals_0.1.9_amd64.AppImage.tar.gz.sig `
+  -LinuxAssetName Rascals_0.1.9_amd64.AppImage.tar.gz
+```
+
+(`-LinuxSignature` accepts the signature text or a path to the `.sig` file.)
+`scripts/upload-assets.ps1` already uploads `*.AppImage`, `*.deb`,
+`*.AppImage.tar.gz*`, `rascals-web-*.zip`, and `latest-linux.json`.
+
 ## Changing the update location
 
 Point the updater elsewhere by editing `plugins.updater.endpoints` in

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { decodeInvite, encodeInvite } from '../lib/invite'
+import { appVersion } from '../lib/platform'
 import { acceptRequest, getP2P, requestFriend, unfriend } from '../lib/session'
 import { useApp, unreadCount } from '../store/app'
 import SettingsModal from './SettingsModal'
@@ -353,14 +354,9 @@ function AppVersion() {
   const [note, setNote] = useState<string | null>(null)
   useEffect(() => {
     let live = true
-    void import('@tauri-apps/api/app')
-      .then(async ({ getVersion }) => {
-        try {
-          const v = await getVersion()
-          if (live) setVersion(v)
-        } catch {
-          if (live) setVersion('web')
-        }
+    void appVersion()
+      .then((v) => {
+        if (live) setVersion(v)
       })
       .catch(() => {
         if (live) setVersion('web')

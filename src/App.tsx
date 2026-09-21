@@ -9,6 +9,7 @@ import TitleBar from './components/TitleBar'
 import UpdateBanner from './components/UpdateBanner'
 import VoiceBar from './components/VoiceBar'
 import { ensureIdentity, importIdentity, type Identity } from './lib/identity'
+import { isWeb } from './lib/platform'
 import { getVoice, startSession, stopSession } from './lib/session'
 import { checkForUpdates } from './lib/updater'
 import { groupChatKey, useApp } from './store/app'
@@ -270,6 +271,7 @@ export default function App() {
 
   useEffect(() => {
     // Honor the auto-launch setting (desktop only; no-op in browsers).
+    if (isWeb()) return
     const apply = useApp.getState().settings.autostart
     void import('@tauri-apps/plugin-autostart')
       .then(async ({ enable, disable, isEnabled }) => {
@@ -285,6 +287,8 @@ export default function App() {
 
   useEffect(() => {
     // Silent update check at most once a day — the banner appears if needed.
+    // Web builds have no bundled updater (see updater.ts).
+    if (isWeb()) return
     void checkForUpdates(false)
   }, [])
 

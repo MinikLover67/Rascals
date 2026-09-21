@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { exportIdentity, importIdentity, renameIdentity } from '../lib/identity'
+import { appVersion as getAppVersion, isWeb } from '../lib/platform'
 import { getVoice } from '../lib/session'
 import { checkForUpdates } from '../lib/updater'
 import { clearCustomSound, importCustomSound, playSound } from '../lib/sound'
@@ -54,14 +55,9 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
         setSpeakers(sp)
       })
       .catch(() => {})
-    void import('@tauri-apps/api/app')
-      .then(async ({ getVersion }) => {
-        try {
-          const v = await getVersion()
-          if (live) setAppVersion(v)
-        } catch {
-          // browser dev — no version
-        }
+    void getAppVersion()
+      .then((v) => {
+        if (live) setAppVersion(v)
       })
       .catch(() => {})
     return () => {
@@ -75,6 +71,11 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
   }
 
   async function toggleAutostart(on: boolean) {
+    // Stored regardless; only the desktop app can apply it.
+    if (isWeb()) {
+      setSettings({ autostart: on })
+      return
+    }
     setSettings({ autostart: on })
     try {
       const plugin = await import('@tauri-apps/plugin-autostart')
@@ -216,10 +217,11 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
         </label>
 
         <div className={h}>Startup</div>
-        <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm">
+        <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm" title={isWeb() ? 'Available in the desktop app' : undefined}>
           <input
             type="checkbox"
             checked={settings.autostart}
+            disabled={isWeb()}
             onChange={(e) => void toggleAutostart(e.target.checked)}
             className="accent-[#7c6cff]"
           />
@@ -330,7 +332,11 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
 
         <div className={h}>Updates</div>
         <p className="mt-1 text-xs text-rascal-dim">
-          {appVersion ? `Rascals v${appVersion}` : 'Rascals (browser preview - updater lives in the desktop app)'}
+          {appVersion
+            ? isWeb()
+              ? `Rascals web v${appVersion} — reload the page for the newest build`
+              : `Rascals v${appVersion}`
+            : 'Rascals (browser preview - updater lives in the desktop app)'}
         </p>
         <button
           onClick={() => void checkUpdates()}

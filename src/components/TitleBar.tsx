@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { isTauri } from '../lib/platform'
 
 function WinButton({
   label,
@@ -25,6 +27,10 @@ function WinButton({
 }
 
 export default function TitleBar() {
+  // Render-time check: the static web build never flashes window controls,
+  // and the desktop webview always has the Tauri runtime at first paint.
+  const [desktop] = useState(() => isTauri())
+
   async function withWindow(fn: (w: ReturnType<typeof getCurrentWindow>) => Promise<void>) {
     try {
       await fn(getCurrentWindow())
@@ -44,14 +50,16 @@ export default function TitleBar() {
         </span>
         <span>Rascals</span>
         <span className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-rascal-dim">
-          P2P · Phase 0
+          {desktop ? 'P2P · Phase 0' : 'P2P · Web'}
         </span>
       </div>
-      <div className="flex">
-        <WinButton label="min" onClick={() => withWindow((w) => w.minimize())} />
-        <WinButton label="max" onClick={() => withWindow((w) => w.toggleMaximize())} />
-        <WinButton label="close" close onClick={() => withWindow((w) => w.close())} />
-      </div>
+      {desktop && (
+        <div className="flex">
+          <WinButton label="min" onClick={() => withWindow((w) => w.minimize())} />
+          <WinButton label="max" onClick={() => withWindow((w) => w.toggleMaximize())} />
+          <WinButton label="close" close onClick={() => withWindow((w) => w.close())} />
+        </div>
+      )}
     </div>
   )
 }
