@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { QRCodeSVG } from 'qrcode.react'
 import { decodeInvite, encodeInvite } from '../lib/invite'
 import { acceptRequest, getP2P, requestFriend, unfriend } from '../lib/session'
 import { useApp, unreadCount } from '../store/app'
@@ -101,9 +100,6 @@ export default function FriendsPanel() {
         </button>
         {showCode && (
           <div className="mt-2 rounded-lg bg-rascal-bg p-2">
-            <div className="mx-auto w-fit rounded bg-white p-2">
-              <QRCodeSVG value={myCode} size={128} />
-            </div>
             <div data-testid="invite-code" className="mt-2 break-all font-mono text-[10px] leading-relaxed text-rascal-dim">
               {myCode}
             </div>
