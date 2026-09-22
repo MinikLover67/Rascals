@@ -6,10 +6,6 @@
     "scripts": {
         "dev": "vite",
         "build": "tsc -b && vite build",
-        "build:web": "tsc -b && vite build --outDir dist-web --emptyOutDir",
-        "web": "npm run build:web && node scripts/serve-web.mjs --host 127.0.0.1",
-        "web:host": "npm run build:web && node scripts/serve-web.mjs --host 0.0.0.0",
-        "serve:web": "node scripts/serve-web.mjs",
         "lint": "oxlint",
         "preview": "vite preview",
         "tauri": "tauri"

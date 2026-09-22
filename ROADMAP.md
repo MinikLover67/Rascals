@@ -20,7 +20,7 @@ Living checklist of unfinished work. Checked items are done and proven.
 
 Core is DONE (E2EE 32 KB chunks, 25 MB cap, resume, thumbnails, IndexedDB cache, save-to-disk, proven peer-to-peer by `scripts/e2e-files.mjs`). Remaining polish:
 
-- [x] Drag-and-drop files straight into the chat input
+- [x] Drag-and-drop files anywhere on screen (whole-window drop zone, routed to the open chat)
 - [ ] Paste images from clipboard to send
 - [ ] Better progress UI for large files (speed, ETA, cancel)
 - [ ] Raise or remove the 25 MB cap (chunking already supports it — mostly UI + testing)
@@ -38,23 +38,7 @@ Core exists (`getDisplayMedia` in `src/lib/voice.ts`, tiles in `VoiceParticipant
 - [ ] Stop-sharing is clean for all viewers (no frozen tile)
 - [ ] Live two-laptop test: share screen mid-call, confirm the other side sees it smoothly
 
-## 5. Web app (Windows + Linux) — NEW, decided scope
-
-Same React frontend as a static build (`npm run build:web` → `dist-web/`,
-served by zero-dep `scripts/serve-web.mjs`). Full parity: identity, P2P,
-files, voice, screenshare all run on browser APIs.
-
-- [x] `src/lib/platform.ts` shim (`isTauri`/`isWeb`/`appVersion`, baked `__APP_VERSION__`)
-- [x] TitleBar hides window controls on web + shows Web badge
-- [x] Updater/autostart degrade with friendly web messages (no silent failures)
-- [x] `npm run web` / `web:host` / `serve:web` scripts, `dist-web` git-ignored
-- [x] CI `build-web` job attaches `rascals-web-*-static.zip` to tag releases
-- [x] `install-linux.sh --web` mode (zip → `~/Applications/rascals-web` + launcher + menu/shortcut)
-- [x] Zero-click auto-login: desktop publishes full account snapshot, web applies it on boot
-- [ ] Live two-browser test (Windows + Linux): add friend, message, file, call
-- [ ] Later: hosted URL vs local-only decision, PWA manifest/icons
-
-## 6. Everything else pending
+## 4. Everything else pending
 
 - [ ] Rotate the GitHub token to minimal scopes (it currently has full scopes)
 - [ ] Delete temp/proof PNGs + scratch scripts from repo root before next release push
@@ -62,4 +46,4 @@ files, voice, screenshare all run on browser APIs.
 - [ ] Publish v0.1.8 Windows assets to the GitHub release, verify `latest.json` serves it
 - [ ] SQLite storage migration (plan.md says SQLite; app still on localStorage/IndexedDB — data loss risk on reinstall)
 - [ ] Offline relay via mutual friend (protocol notes it as "later")
-- [ ] Mobile clients — still out of scope (web covers browsers for now)
+- [ ] Mobile / web clients — explicitly out of scope (web app removed: laggy, redundant with desktop)

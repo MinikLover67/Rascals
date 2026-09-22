@@ -9,8 +9,6 @@ import TitleBar from './components/TitleBar'
 import UpdateBanner from './components/UpdateBanner'
 import VoiceBar from './components/VoiceBar'
 import { ensureIdentity, importIdentity, type Identity } from './lib/identity'
-import { isWeb } from './lib/platform'
-import { applyWeblinkSnapshot, describeSnapshot, fetchWeblinkIdentity, publishWeblink, replaceWithDesktopAccount } from './lib/weblink'
 import { emitDropFiles } from './lib/dropfiles'
 import { getVoice, startSession, stopSession } from './lib/session'
 import { checkForUpdates } from './lib/updater'
@@ -20,8 +18,6 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pasted, setPasted] = useState('')
-  const [showPaste, setShowPaste] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function create() {
@@ -44,52 +40,16 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
     setBusy(true)
     setError(null)
     try {
-      await restoreText(await files[0].text())
+      const id = await importIdentity(await files[0].text())
+      if (id) onDone(id)
+      else setError('That file is not a valid Rascals identity backup.')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
       if (fileRef.current) fileRef.current.value = ''
     }
   }
-
-  // Shared by file restore and pasted-text restore (the web-app account link).
-  async function restoreText(text: string) {
-    const id = await importIdentity(text).catch(() => null)
-    if (id) onDone(id)
-    else setError('That is not a valid Rascals identity backup.')
-  }
-
-  // One-click account link: the desktop app copies the backup to the
-  // clipboard, the browser reads it back (permission prompt) — no typing.
-  async function restoreFromClipboard(): Promise<void> {
-    setBusy(true)
-    setError(null)
-    try {
-      const text = await navigator.clipboard.readText()
-      if (!text.trim()) {
-        setShowPaste(true)
-        setError('Clipboard is empty — copy the backup in the desktop app first.')
-        return
-      }
-      await restoreText(text.trim())
-      // restoreText only sets an error on failure; reveal manual box then.
-      setShowPaste(true)
-    } catch {
-      setShowPaste(true)
-      setError('Browser blocked clipboard access — allow it or paste manually below.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  // Desktop "open web app" links here: auto-expand + try the clipboard once.
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.hash === '#link') {
-      window.location.hash = ''
-      setShowPaste(true)
-      void restoreFromClipboard()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   return (
     <div className="flex flex-1 items-center justify-center p-8">
@@ -128,90 +88,9 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
           >
             or restore from a backup file
           </button>
-          <span className="mx-2 text-xs text-rascal-dim">·</span>
-          <button
-            onClick={() => setShowPaste((v) => !v)}
-            disabled={busy}
-            className="text-xs text-rascal-dim underline underline-offset-2 hover:text-white disabled:opacity-40"
-          >
-            use my desktop account
-          </button>
         </div>
-        {showPaste && (
-          <div className="mt-3 rounded-lg border border-rascal-line bg-rascal-bg p-3">
-            <p className="text-[11px] text-rascal-dim">
-              Already have Rascals on this PC? In the desktop app open Settings →
-              Profile → Back up identity → copy, then one click here. Same account,
-              same friends — the web app just borrows it.
-            </p>
-            <button
-              onClick={() => void restoreFromClipboard()}
-              disabled={busy}
-              data-testid="onboard-clipboard"
-              className="mt-2 w-full rounded-lg bg-rascal-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
-            >
-              {busy ? 'Reading clipboard…' : 'Read backup from clipboard'}
-            </button>
-            <textarea
-              value={pasted}
-              onChange={(e) => setPasted(e.target.value)}
-              placeholder='Paste the {"app":"rascals-identity",…} backup text'
-              rows={3}
-              data-testid="onboard-paste"
-              className="mt-2 w-full rounded-lg border border-rascal-line bg-rascal-panel p-2 font-mono text-[10px] outline-none focus:border-rascal-accent"
-            />
-            <button
-              onClick={() => {
-                setBusy(true)
-                setError(null)
-                void restoreText(pasted.trim()).finally(() => setBusy(false))
-              }}
-              disabled={busy || !pasted.trim()}
-              data-testid="onboard-use-pasted"
-              className="mt-2 w-full rounded-lg bg-rascal-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
-            >
-              {busy ? 'Checking…' : 'Use this account'}
-            </button>
-          </div>
-        )}
       </div>
     </div>
-  )
-}
-
-// Web only, empty account: the desktop snapshot has friends this browser
-// doesn't — offer a one-click pull instead of a bare "add a friend".
-function EmptyAccountCTA() {
-  const [info, setInfo] = useState<{ friends: number } | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    let live = true
-    void describeSnapshot()
-      .then((d) => {
-        if (live && d && !d.sameIdentity && d.friends > 0) setInfo({ friends: d.friends })
-      })
-      .catch(() => {})
-    return () => {
-      live = false
-    }
-  }, [])
-
-  if (!info) return null
-  return (
-    <button
-      onClick={() => {
-        setBusy(true)
-        void replaceWithDesktopAccount()
-      }}
-      disabled={busy}
-      data-testid="pull-desktop-account"
-      className="mx-auto mt-4 block max-w-md rounded-xl border border-rascal-accent/50 bg-rascal-accent/10 px-4 py-2.5 text-sm font-semibold hover:bg-rascal-accent/20 disabled:opacity-50"
-    >
-      {busy
-        ? 'Bringing in your account…'
-        : `Your desktop has ${info.friends} friend${info.friends === 1 ? '' : 's'} — bring them here`}
-    </button>
   )
 }
 
@@ -257,7 +136,6 @@ function MainPanel() {
             ? 'Add a friend to get started.'
             : 'Pick a friend, group, or server to open the conversation.'}
         </p>
-        {friends.length === 0 && isWeb() && <EmptyAccountCTA />}
         <p className="mx-auto mt-2 max-w-md">
           Share your invite code with someone else running Rascals. When
           you're both online you'll see each other light up green — no
@@ -343,26 +221,8 @@ export default function App() {
   useEffect(() => {
     let cancelled = false
     ensureIdentity()
-      .then(async (id) => {
-        if (cancelled) return
-        if (id) {
-          setIdentity(id)
-          return
-        }
-        // Web with no identity of its own: apply the desktop-published
-        // snapshot (identity, friends, groups, history, settings), then
-        // reload so the store boots with the transferred account. Zero clicks
-        // when the desktop app ran on this PC. The browser's own account,
-        // once set, always wins — this path only runs when it has none.
-        if (isWeb()) {
-          const applied = await applyWeblinkSnapshot().catch(() => false)
-          if (!cancelled && applied) {
-            window.location.reload()
-            return
-          }
-          const linked = await fetchWeblinkIdentity().catch(() => null)
-          if (!cancelled && linked) setIdentity(linked)
-        }
+      .then((id) => {
+        if (!cancelled && id) setIdentity(id)
       })
       .catch(() => {})
       .finally(() => {
@@ -372,27 +232,6 @@ export default function App() {
       cancelled = true
     }
   }, [setIdentity])
-
-  // Desktop: always publish the login for web auto-login (silent, idempotent).
-  // No toggle, no UI — browsers on this PC just open already signed in.
-  // Re-publishes when account membership changes so new friends/groups
-  // transfer too (a plain string signal — presence flips don't rewrite).
-  // Live messages arrive over P2P once the web session is running anyway.
-  const pubSig = useApp((s) =>
-    [
-      ...s.friends.map((f) => f.userId),
-      ...Object.keys(s.groups),
-      ...Object.keys(s.servers),
-      ...s.requests.map((r) => r.userId),
-    ].join(','),
-  )
-  useEffect(() => {
-    if (!identity || isWeb()) return
-    void publishWeblink().catch(() => {
-      // disk hiccup — next change or boot retries
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [identity, pubSig])
 
   // Start / stop the P2P session with the identity's lifetime.
   useEffect(() => {
@@ -431,8 +270,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    // Honor the auto-launch setting (desktop only; no-op in browsers).
-    if (isWeb()) return
+    // Honor the auto-launch setting.
     const apply = useApp.getState().settings.autostart
     void import('@tauri-apps/plugin-autostart')
       .then(async ({ enable, disable, isEnabled }) => {
@@ -448,8 +286,6 @@ export default function App() {
 
   useEffect(() => {
     // Silent update check at most once a day — the banner appears if needed.
-    // Web builds have no bundled updater (see updater.ts).
-    if (isWeb()) return
     void checkForUpdates(false)
   }, [])
 

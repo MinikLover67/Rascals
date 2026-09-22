@@ -3,7 +3,6 @@
 // Silent auto-check runs at most once a day; manual checks always run.
 
 import { useApp } from '../store/app'
-import { isWeb } from './platform'
 
 const STAMP_KEY = 'rascals.last-update-check'
 const DAY_MS = 24 * 3600 * 1000
@@ -18,13 +17,6 @@ function stamp(): void {
 
 /** Check for updates. Sets the update banner when one is found. Never throws. */
 export async function checkForUpdates(manual: boolean): Promise<string> {
-  // The static web build has no bundled updater: a refresh loads the newest
-  // deployed files, and self-hosted copies update by re-running `npm run web`.
-  if (isWeb()) {
-    return manual
-      ? 'Web version: reload the page to get the newest build.'
-      : 'web build — no updater'
-  }
   try {
     const { check } = await import('@tauri-apps/plugin-updater')
     if (!manual) {
@@ -54,7 +46,6 @@ export async function checkForUpdates(manual: boolean): Promise<string> {
 
 /** Download + install the pending update, then restart. Never throws. */
 export async function installUpdate(): Promise<string> {
-  if (isWeb()) return 'Web version: reload the page to get the newest build.'
   try {
     const { check } = await import('@tauri-apps/plugin-updater')
     const update = await check()

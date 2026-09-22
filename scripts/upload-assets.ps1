@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $H = @{ 'Authorization' = "Bearer $Token" }
 $base = "https://uploads.github.com/repos/MinikLover67/Rascals/releases/$ReleaseId/assets?name="
-$files = @('latest.json') + (Get-ChildItem (Join-Path $Folder '*') -Include '*.exe', '*.sig', '*.msi', '*.AppImage', '*.AppImage.tar.gz', '*.AppImage.tar.gz.sig', '*.deb', 'rascals-web-*.zip', 'latest-linux.json' | ForEach-Object { $_.Name })
+$files = @('latest.json') + (Get-ChildItem (Join-Path $Folder '*') -Include '*.exe', '*.sig', '*.msi', '*.AppImage', '*.AppImage.tar.gz', '*.AppImage.tar.gz.sig', '*.deb', 'latest-linux.json' | ForEach-Object { $_.Name })
 $existing = @{}
 try {
   $list = Invoke-RestMethod -Uri "https://api.github.com/repos/MinikLover67/Rascals/releases/$ReleaseId/assets?per_page=50" -Headers $H

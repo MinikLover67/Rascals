@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { exportIdentity, importIdentity, renameIdentity } from '../lib/identity'
-import { appVersion as getAppVersion, isWeb } from '../lib/platform'
-import { replaceWithDesktopAccount } from '../lib/weblink'
 import { getVoice } from '../lib/session'
 import { checkForUpdates } from '../lib/updater'
 import { clearCustomSound, importCustomSound, playSound } from '../lib/sound'
@@ -56,9 +54,14 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
         setSpeakers(sp)
       })
       .catch(() => {})
-    void getAppVersion()
-      .then((v) => {
-        if (live) setAppVersion(v)
+    void import('@tauri-apps/api/app')
+      .then(async ({ getVersion }) => {
+        try {
+          const v = await getVersion()
+          if (live) setAppVersion(v)
+        } catch {
+          // browser dev — no version
+        }
       })
       .catch(() => {})
     return () => {
@@ -72,11 +75,6 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
   }
 
   async function toggleAutostart(on: boolean) {
-    // Stored regardless; only the desktop app can apply it.
-    if (isWeb()) {
-      setSettings({ autostart: on })
-      return
-    }
     setSettings({ autostart: on })
     try {
       const plugin = await import('@tauri-apps/plugin-autostart')
@@ -218,11 +216,10 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
         </label>
 
         <div className={h}>Startup</div>
-        <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm" title={isWeb() ? 'Available in the desktop app' : undefined}>
+        <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm">
           <input
             type="checkbox"
             checked={settings.autostart}
-            disabled={isWeb()}
             onChange={(e) => void toggleAutostart(e.target.checked)}
             className="accent-[#7c6cff]"
           />
@@ -333,11 +330,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
 
         <div className={h}>Updates</div>
         <p className="mt-1 text-xs text-rascal-dim">
-          {appVersion
-            ? isWeb()
-              ? `Rascals web v${appVersion} — reload the page for the newest build`
-              : `Rascals v${appVersion}`
-            : 'Rascals (browser preview - updater lives in the desktop app)'}
+          {appVersion ? `Rascals v${appVersion}` : 'Rascals (browser preview - updater lives in the desktop app)'}
         </p>
         <button
           onClick={() => void checkUpdates()}
@@ -509,14 +502,6 @@ function ProfileSection() {
     }
   }
 
-  // Web only: drop this browser's account so the next boot pulls the desktop
-  // snapshot (friends, groups, history and all). Fixes being stuck on a
-  // stray web-only identity. Reloads when done.
-  async function switchToDesktop() {
-    setMsg('Switching to the desktop account…')
-    await replaceWithDesktopAccount()
-  }
-
   return (
     <div>
       <div className="mt-5 text-xs font-semibold uppercase tracking-wider text-rascal-dim">
@@ -565,25 +550,6 @@ function ProfileSection() {
           />
           <button onClick={() => void copyBackup()} className="mt-1 text-xs text-rascal-dim underline underline-offset-2 hover:text-white">
             copy to clipboard
-          </button>
-          <p className="mt-1 text-[11px] text-rascal-dim">
-            The web app on this PC signs in as you on its own. If it ever
-            asks, copy this and paste it on its welcome screen.
-          </p>
-        </div>
-      )}
-      {isWeb() && (
-        <div className="mt-2 rounded-lg border border-rascal-line bg-rascal-bg p-2">
-          <p className="text-[11px] text-rascal-dim">
-            On the wrong account here (no friends)? One click replaces this
-            browser's account with the desktop one — friends, groups, history
-            and all.
-          </p>
-          <button
-            onClick={() => void switchToDesktop()}
-            className="mt-1.5 w-full rounded-lg bg-rascal-accent px-3 py-1.5 text-xs font-semibold text-white"
-          >
-            Use desktop account instead
           </button>
         </div>
       )}
