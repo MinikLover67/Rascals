@@ -21,6 +21,7 @@ Living checklist of unfinished work. Checked items are done and proven.
 Core is DONE (E2EE 32 KB chunks, 25 MB cap, resume, thumbnails, IndexedDB cache, save-to-disk, proven peer-to-peer by `scripts/e2e-files.mjs`). Remaining polish:
 
 - [x] Drag-and-drop files anywhere on screen (whole-window drop zone, routed to the open chat)
+  - Fixed: Tauri's native layer eats OS file drops before the webview — `dragDropEnabled: false` so HTML5 drops reach the app (desktop-only bug, browsers unaffected)
 - [ ] Paste images from clipboard to send
 - [ ] Better progress UI for large files (speed, ETA, cancel)
 - [ ] Raise or remove the 25 MB cap (chunking already supports it — mostly UI + testing)
@@ -42,7 +43,7 @@ Core exists (`getDisplayMedia` in `src/lib/voice.ts`, tiles in `VoiceParticipant
 
 - [ ] Rotate the GitHub token to minimal scopes (it currently has full scopes)
 - [ ] Delete temp/proof PNGs + scratch scripts from repo root before next release push
-- [ ] Commit + push: beta disclaimers in `install-linux.sh` / `README.md`, `upload-assets.ps1` helper
+- [x] Commit + push: beta disclaimers in `install-linux.sh` / `README.md`, `upload-assets.ps1` helper
 - [ ] Publish v0.1.8 Windows assets to the GitHub release, verify `latest.json` serves it
 - [ ] SQLite storage migration (plan.md says SQLite; app still on localStorage/IndexedDB — data loss risk on reinstall)
 - [ ] Offline relay via mutual friend (protocol notes it as "later")

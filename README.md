@@ -30,8 +30,8 @@ bash scripts/install-linux.sh --yes --no-shortcut   # defaults, no prompts
 bash scripts/install-linux.sh --help                # all options
 ```
 
-> Linux support is young: the AppImage is built and smoke-checked in CI, but
-> not yet battle-tested on real Arch/KDE hardware. Report issues on GitHub.
+> **Alpha:** Linux support is experimental and largely untested on real
+> Arch/KDE hardware. Expect rough edges — report issues on GitHub.
 
 Requirements: Arch-based distro with `pacman` + `sudo`, 64-bit x86.
 
