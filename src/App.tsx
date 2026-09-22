@@ -367,7 +367,7 @@ export default function App() {
           data-testid="drop-overlay"
         >
           <span className="rounded-xl bg-rascal-panel px-4 py-2 text-sm font-semibold">
-            {dropChatKey() ? 'Drop files to send — encrypted end to end' : 'Open a chat first to send files'}
+            {dropChatKey() ? 'Drop files to attach — Enter sends them' : 'Open a chat first to send files'}
           </span>
         </div>
       )}

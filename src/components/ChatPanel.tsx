@@ -13,7 +13,8 @@ import { getVoice } from '../lib/session'
 import { renderMarkdown } from '../lib/md'
 import { extractYouTubeId } from '../lib/youtube'
 import { markReadNow, useApp, EMPTY_MESSAGES, EMPTY_PINS, type ChatMessage } from '../store/app'
-import { shortUid } from '../lib/format'
+import { shortUid, fmtBytes } from '../lib/format'
+import { MAX_FILE_BYTES } from '../lib/chat'
 import { onDropFiles } from '../lib/dropfiles'
 
 function fmtTime(ts: number): string {
@@ -441,24 +442,44 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
     [chatKey, api],
   )
 
-  // Files dropped anywhere on screen arrive here via App and send to this
-  // chat. Stable callback so the subscription never goes stale. Declared
-  // here because below this point the component may return early, and
-  // hooks must run unconditionally.
+  // Staged attachments: drops and the Attach button park files here until
+  // the user presses Enter/Send. Declared with the other hooks (above the
+  // early returns). Cap keeps a wild multi-select from eating memory.
+  const MAX_STAGED = 10
+  const [pending, setPending] = useState<File[]>([])
+  // Guards double-Enter in the same tick (stale closure would resend files).
+  const sendingRef = useRef(false)
   const onFiles = useCallback(
     async (files: FileList | File[] | null) => {
       if (!files || files.length === 0) return
       setFileErr(null)
-      for (const f of Array.from(files)) {
-        const err = await api.sendFile(chatKey, f, f.name, {})
-        if (err) {
-          setFileErr(`${f.name}: ${err}`)
+      const incoming = Array.from(files)
+      const staged: File[] = []
+      for (const f of incoming) {
+        if (f.size <= 0) {
+          setFileErr(`${f.name}: that file is empty.`)
           break
         }
+        if (f.size > MAX_FILE_BYTES) {
+          setFileErr(`${f.name}: files are capped at 25 MB for now.`)
+          break
+        }
+        staged.push(f)
+      }
+      if (staged.length === 0) {
+        if (fileRef.current) fileRef.current.value = ''
+        return
+      }
+      const room = MAX_STAGED - pending.length
+      if (room <= 0) {
+        setFileErr(`At most ${MAX_STAGED} files at once — send these first.`)
+      } else {
+        if (staged.length > room) setFileErr(`Kept the first ${room} — at most ${MAX_STAGED} at once.`)
+        setPending((prev) => [...prev, ...staged.slice(0, room)])
       }
       if (fileRef.current) fileRef.current.value = ''
     },
-    [api, chatKey],
+    [pending],
   )
   useEffect(() => onDropFiles((files) => void onFiles(files)), [onFiles])
 
@@ -483,13 +504,28 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
 
   async function send() {
     const text = draft.trim()
-    if (!text) return
-    setDraft(chatKey, '')
-    setReplyTo(null)
-    typingOn.current = false
-    playSound('send')
-    await api.sendTyping(chatKey, false).catch(() => {})
-    await api.sendText(chatKey, text, replyTo).catch(() => {})
+    const staged = pending
+    if ((!text && staged.length === 0) || sendingRef.current) return
+    sendingRef.current = true
+    try {
+      setDraft(chatKey, '')
+      setPending([])
+      setReplyTo(null)
+      setFileErr(null)
+      typingOn.current = false
+      playSound('send')
+      await api.sendTyping(chatKey, false).catch(() => {})
+      if (text) await api.sendText(chatKey, text, replyTo).catch(() => {})
+      for (const f of staged) {
+        const err = await api.sendFile(chatKey, f, f.name, {})
+        if (err) {
+          setFileErr(`${f.name}: ${err}`)
+          break
+        }
+      }
+    } finally {
+      sendingRef.current = false
+    }
   }
 
   function onInput(v: string) {
@@ -656,11 +692,36 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
       )}
 
       <div className="border-t border-rascal-line p-3">
+        {pending.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5" data-testid="pending-tray">
+            {pending.map((f, i) => (
+              <span
+                key={`${f.name}-${f.size}-${i}`}
+                data-testid="pending-file"
+                data-filename={f.name}
+                className="flex max-w-56 items-center gap-1.5 rounded-lg border border-rascal-accent/40 bg-rascal-accent/10 px-2 py-1 text-xs"
+              >
+                <span className="min-w-0 flex-1 truncate" title={f.name}>
+                  {f.name}
+                </span>
+                <span className="shrink-0 text-[10px] text-rascal-dim">{fmtBytes(f.size)}</span>
+                <button
+                  onClick={() => setPending((prev) => prev.filter((_, j) => j !== i))}
+                  title="Remove"
+                  aria-label={`Remove ${f.name}`}
+                  className="shrink-0 rounded px-1 text-rascal-dim hover:bg-white/10 hover:text-white"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex items-end gap-2">
           <input ref={fileRef} type="file" multiple data-testid="file-input" className="hidden" onChange={(e) => void onFiles(e.target.files)} />
           <button
             onClick={() => fileRef.current?.click()}
-            title="Attach files or images (E2EE, up to 25 MB)"
+            title="Attach files or images (staged until you press Send - E2EE, up to 25 MB)"
             className="shrink-0 rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm text-rascal-dim hover:text-white"
           >
             Attach
@@ -683,12 +744,12 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
               }
             }}
             rows={1}
-            placeholder={placeholder}
+            placeholder={pending.length > 0 ? 'Add a message (optional) — Enter sends everything' : placeholder}
             className="max-h-32 flex-1 resize-none rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm outline-none focus:border-rascal-accent"
           />
           <button
             onClick={() => void send()}
-            disabled={!draft.trim()}
+            disabled={!draft.trim() && pending.length === 0}
             className="shrink-0 rounded-xl bg-rascal-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
           >
             Send
@@ -696,7 +757,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
         </div>
         {fileErr && <div className="mt-1 px-1 text-[11px] text-red-300">{fileErr}</div>}
         <div className="mt-1 px-1 text-[10px] text-rascal-dim">
-          Enter to send - Shift+Enter for newline - drop files anywhere to send - **bold** *italic* `code` - YouTube links embed on click
+          Enter to send - Shift+Enter for newline - drop files anywhere to attach - **bold** *italic* `code` - YouTube links embed on click
         </div>
       </div>
       {gifOpen && <GifPicker chatKey={chatKey} onClose={() => setGifOpen(false)} />}
