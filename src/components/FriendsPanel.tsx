@@ -117,6 +117,9 @@ export default function FriendsPanel() {
         <div className="text-xs font-semibold uppercase tracking-wider text-rascal-dim">
           Add friend
         </div>
+        <p className="mt-1 text-[11px] text-rascal-dim">
+          Codes work across the internet — different Wi-Fi, different cities, no problem.
+        </p>
         <div className="mt-2 flex gap-1.5">
           <input
             value={codeInput}

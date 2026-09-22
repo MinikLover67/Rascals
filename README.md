@@ -5,6 +5,10 @@ database — friends connect directly over encrypted WebRTC, with decentralized
 signaling. Text, images, files, voice messages, group chats, servers with
 channels, 1:1 calls, voice channels, screensharing.
 
+Invite codes work across the internet: different Wi-Fi, different cities —
+if you're both online, you connect. Strict NAT? Add a TURN server in
+Settings and media still stays end-to-end encrypted through it.
+
 ## Install on Windows
 
 Download `Rascals_<version>_x64-setup.exe` from

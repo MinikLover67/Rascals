@@ -137,9 +137,9 @@ function MainPanel() {
             : 'Pick a friend, group, or server to open the conversation.'}
         </p>
         <p className="mx-auto mt-2 max-w-md">
-          Share your invite code with someone else running Rascals. When
-          you're both online you'll see each other light up green — no
-          servers involved.
+          Share your invite code with someone else running Rascals — different
+          network is fine. When you're both online you'll see each other light
+          up green — no servers involved.
         </p>
       </div>
     </div>
