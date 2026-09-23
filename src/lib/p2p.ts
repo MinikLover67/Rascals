@@ -519,13 +519,24 @@ export class P2P {
     return (this.peerFileVersion.get(friendId) ?? 1) >= 2
   }
 
-  /** Re-broadcast hello in every joined DM room with live peers.
-   * Presence self-heals without restarts: a rebooted peer's hellos flip it
-   * back online on the other side within one interval, even if the join
-   * handshake was missed (broadcast, never targeted at stale peer ids). */
+  /** Claimed file-protocol version (0 = never heard a hello yet). */
+  peerFileVersionOf(friendId: string): number {
+    return this.peerFileVersion.get(friendId) ?? 0
+  }
+
+  /** Leave + rejoin a DM room (resets wedged discovery state). Safe to call
+   * any time; in-flight streams abort and resume via the normal retry path. */
+  async rejoinDmRoom(friendId: string): Promise<void> {
+    this.leaveDmRoom(friendId)
+    await this.ensureDmRoom(friendId)
+  }
+
+  /** Re-broadcast hello in every joined DM room — including apparently
+   * empty ones. A room can look empty locally while the peer still listens
+   * (missed join handshake), and only an actual hello heals that. */
   async broadcastHellos(): Promise<void> {
     for (const entry of this.dmRooms.values()) {
-      if (entry.peers.size === 0 || !entry.hello) continue
+      if (!entry.hello) continue
       try {
         await entry.hello(await this.makeHello(entry.friendId))
       } catch {

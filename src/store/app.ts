@@ -211,6 +211,9 @@ interface AppState {
   toasts: Toast[]
   pushToast: (t: Omit<Toast, 'id'>) => void
   dismissToast: (id: string) => void
+  /** Favorite friends (userId -> favorited-at ts): pinned atop the list. */
+  favorites: Record<string, number>
+  toggleFavorite: (userId: string) => void
   /** Transient voice/call state (never persisted). */
   voice: VoiceState
   setIdentity: (id: Identity | null) => void
@@ -262,6 +265,7 @@ interface AppState {
 const FRIENDS_KEY = 'rascals.friends.v1'
 const REQUESTS_KEY = 'rascals.requests.v1'
 const RECENT_KEY = 'rascals.recent.v1'
+const FAVORITES_KEY = 'rascals.favorites.v1'
 const MAX_RECENT = 20
 const MESSAGES_KEY = 'rascals.messages.v2'
 const DRAFTS_KEY = 'rascals.drafts.v1'
@@ -346,6 +350,14 @@ export const useApp = create<AppState>((set) => ({
       toasts: [...s.toasts.slice(-3), { ...t, id: `${Date.now()}-${Math.random().toString(36).slice(2)}` }],
     })),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  favorites: load<Record<string, number>>(FAVORITES_KEY, {}),
+  toggleFavorite: (userId) =>
+    set((s) => {
+      const next = { ...s.favorites }
+      if (next[userId]) delete next[userId]
+      else next[userId] = Date.now()
+      return { favorites: next }
+    }),
   setIdentity: (identity) => set({ identity }),
   addFriend: (f) =>
     set((s) =>
@@ -354,10 +366,15 @@ export const useApp = create<AppState>((set) => ({
         : { friends: [...s.friends, f] },
     ),
   removeFriend: (userId) =>
-    set((s) => ({
-      friends: s.friends.filter((f) => f.userId !== userId),
-      selectedFriend: s.selectedFriend === userId ? null : s.selectedFriend,
-    })),
+    set((s) => {
+      const favorites = { ...s.favorites }
+      delete favorites[userId]
+      return {
+        friends: s.friends.filter((f) => f.userId !== userId),
+        selectedFriend: s.selectedFriend === userId ? null : s.selectedFriend,
+        favorites,
+      }
+    }),
   renameFriend: (userId, displayName) =>
     set((s) => {
       // Defensive: hello-driven renames arrive peer-controlled.
@@ -578,6 +595,7 @@ useApp.subscribe((s) => {
     localStorage.setItem(FRIENDS_KEY, JSON.stringify(s.friends))
     localStorage.setItem(REQUESTS_KEY, JSON.stringify(s.requests))
     localStorage.setItem(RECENT_KEY, JSON.stringify(s.recent))
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(s.favorites))
     const trimmed: Record<string, ChatMessage[]> = {}
     for (const [k, v] of Object.entries(s.messages))
       trimmed[k] = v.slice(-MAX_STORED_PER_CHAT)

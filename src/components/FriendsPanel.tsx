@@ -11,6 +11,8 @@ function shortId(userId: string): string {
 export default function FriendsPanel() {
   const identity = useApp((s) => s.identity)
   const friends = useApp((s) => s.friends)
+  const favorites = useApp((s) => s.favorites)
+  const toggleFavorite = useApp((s) => s.toggleFavorite)
   const requests = useApp((s) => s.requests)
   const selectedFriend = useApp((s) => s.selectedFriend)
   const selectFriend = useApp((s) => s.selectFriend)
@@ -33,6 +35,15 @@ export default function FriendsPanel() {
   const incoming = requests.filter((r) => r.direction === 'in')
   const outgoing = requests.filter((r) => r.direction === 'out')
   const onlineCount = friends.filter((f) => f.online).length
+  // Favorites first (by favorited-at), then the rest in existing order.
+  const orderedFriends = [...friends].sort((a, b) => {
+    const fa = favorites[a.userId] ?? 0
+    const fb = favorites[b.userId] ?? 0
+    if (fa && fb) return fa - fb
+    if (fa) return -1
+    if (fb) return 1
+    return 0
+  })
 
   async function copyCode() {
     try {
@@ -203,8 +214,9 @@ export default function FriendsPanel() {
             encrypted connection.
           </p>
         )}
-        {friends.map((f) => {
+        {orderedFriends.map((f) => {
           const unread = unreadCount(messages[f.userId], lastRead[f.userId])
+          const fav = favorites[f.userId] !== undefined
           return (
             <div
               key={f.userId}
@@ -229,6 +241,16 @@ export default function FriendsPanel() {
                   {unread > 99 ? '99+' : unread}
                 </span>
               )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleFavorite(f.userId)
+                }}
+                title={fav ? 'Unfavorite' : 'Favorite (pin to top)'}
+                className={`rounded px-1.5 text-sm leading-none hover:bg-white/10 ${fav ? 'text-rascal-amber' : 'text-rascal-dim/50 hover:text-rascal-amber'}`}
+              >
+                {fav ? '★' : '☆'}
+              </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation()

@@ -21,6 +21,8 @@ let retryTimer: number | null = null
 let helloTimer: number | null = null
 /** Last hello (or room join) seen per friend — drives the stale sweep. */
 const lastSeen = new Map<string, number>()
+/** Last wedge-heal pass (room rejoins for silent-but-listed peers). */
+let lastWedgeHeal = 0
 /** Random per app launch — tells two diagnostics captures apart. */
 let sessionNonce = ''
 
@@ -218,19 +220,23 @@ export async function startSession(identity: Identity): Promise<void> {
     }
   }, RETRY_MS)
   // Presence self-heal: re-broadcast hellos every 30 s so a rebooted peer
-  // flips back online without anyone restarting, and sweep friends with no
-  // sign of life for 90 s back to offline (stale the other way). Broadcast,
-  // never targeted — stale peer ids in the room don't matter.
+  // flips back online without anyone restarting. Two guards keep it honest:
+  // the stale sweep only applies to peers speaking the heartbeat protocol
+  // (fv>=2 — older clients never heartbeat, sweeping them would force them
+  // offline wrongly), and silent-but-listed rooms get rejoined on cadence.
   if (helloTimer !== null) clearInterval(helloTimer)
   const beat = (): void => {
     try {
-      void p2p?.broadcastHellos().catch(() => {})
+      const inst = getP2P()
+      void inst?.broadcastHellos().catch(() => {})
       const st = useApp.getState()
       const now = Date.now()
       for (const f of st.friends) {
         if (!f.online) continue
+        if ((inst?.peerFileVersionOf(f.userId) ?? 0) < 2) continue
         if (now - (lastSeen.get(f.userId) ?? 0) > 90000) st.setOnline(f.userId, false)
       }
+      maybeWedgeHeal(120000)
     } catch {
       // heartbeat must never break the app
     }
@@ -240,9 +246,30 @@ export async function startSession(identity: Identity): Promise<void> {
   window.addEventListener('online', refreshHellos)
 }
 
+/** Rejoin DM rooms that list peers but went silent (wedged discovery).
+ * Gated by minAgeMs so healthy rooms and focus spam never churn. */
+function maybeWedgeHeal(minAgeMs: number): void {
+  try {
+    const inst = getP2P()
+    if (!inst) return
+    const now = Date.now()
+    if (now - lastWedgeHeal < minAgeMs) return
+    lastWedgeHeal = now
+    const st = useApp.getState()
+    for (const f of st.friends) {
+      if ((inst.peerCount(f.userId) ?? 0) === 0) continue
+      if (now - (lastSeen.get(f.userId) ?? 0) <= 60000) continue
+      void inst.rejoinDmRoom(f.userId).catch(() => {})
+    }
+  } catch {
+    // healing must never break the app
+  }
+}
+
 function refreshHellos(): void {
   try {
     void getP2P()?.broadcastHellos().catch(() => {})
+    maybeWedgeHeal(30000)
   } catch {
     // ignore
   }
@@ -276,6 +303,7 @@ export async function unfriend(userId: string): Promise<void> {
   const s = useApp.getState()
   const f = s.friends.find((x) => x.userId === userId)
   getP2P()?.leaveDmRoom(userId)
+  lastSeen.delete(userId)
   s.removeRequest(userId)
   s.setTyping(userId, 0)
   s.removeFriend(userId)
