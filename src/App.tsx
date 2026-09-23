@@ -271,6 +271,19 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    // Ask the OS for notification permission at boot, not at first message
+    // (lazy asking can fail silently outside a user gesture — no toasts ever).
+    void (async () => {
+      try {
+        const { ensureNotifyPermission } = await import('./lib/notify')
+        await ensureNotifyPermission()
+      } catch {
+        // notifications stay best-effort
+      }
+    })()
+  }, [])
+
+  useEffect(() => {
     // Honor the auto-launch setting.
     const apply = useApp.getState().settings.autostart
     void import('@tauri-apps/plugin-autostart')

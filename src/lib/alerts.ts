@@ -2,7 +2,7 @@
 // always a sound blip, plus a native notification when the chat is not open.
 
 import { useApp } from '../store/app'
-import { notifyUser } from './notify'
+import { flashTaskbar, isHidden, notifyUser } from './notify'
 import { playSound } from './sound'
 import { shapeDisplayName } from './format'
 
@@ -32,6 +32,7 @@ export function alertIncomingDM(friendId: string, preview: string): void {
     const name = noteName(raw)
     void notifyUser(name, preview.slice(0, 140))
     useApp.getState().pushToast({ title: name, body: preview.slice(0, 140), chatKey: friendId })
+    if (isHidden()) void flashTaskbar()
   }
 }
 
@@ -46,6 +47,7 @@ export function alertIncomingGroup(chatKey: string, senderId: string, preview: s
     const title = `${noteName(sender)} in ${groupName}`
     void notifyUser(title, preview.slice(0, 140))
     s.pushToast({ title, body: preview.slice(0, 140), chatKey })
+    if (isHidden()) void flashTaskbar()
   }
 }
 
@@ -54,6 +56,7 @@ export function alertFriendRequest(displayName: string): void {
   const name = noteName(displayName)
   void notifyUser('New friend request', `${name} wants to connect on Rascals.`)
   useApp.getState().pushToast({ title: 'New friend request', body: `${name} wants to connect.`, chatKey: null })
+  if (isHidden()) void flashTaskbar()
 }
 
 export function alertCallMissed(peerName: string): void {

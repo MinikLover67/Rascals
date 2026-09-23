@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from '../store/app'
 
 // In-app arrival toasts: bottom-right stack, always visible (OS
@@ -9,15 +9,28 @@ export default function Toasts() {
   const dismissToast = useApp((s) => s.dismissToast)
   const selectFriend = useApp((s) => s.selectFriend)
   const selectGroup = useApp((s) => s.selectGroup)
+  const [tick, setTick] = useState(0)
+
+  // Re-arm timers when the window visibility changes: toasts that arrive
+  // while hidden (tray) must WAIT for the user instead of expiring unseen.
+  useEffect(() => {
+    const onVis = (): void => {
+      setTick((t) => t + 1)
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [])
 
   useEffect(() => {
     if (toasts.length === 0) return
+    if (typeof document !== 'undefined' && document.hidden) return
     const timer = window.setTimeout(() => {
       const first = useApp.getState().toasts[0]
       if (first) useApp.getState().dismissToast(first.id)
     }, 6000)
     return () => window.clearTimeout(timer)
-  }, [toasts])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toasts, tick])
 
   if (toasts.length === 0) return null
 
