@@ -135,6 +135,16 @@ export async function startSession(identity: Identity): Promise<void> {
       })
     },
   })
+  // A peer coming back (room join OR first hello after silence): flush
+  // queued messages, restream files, retry missed invites. Without this,
+  // anything queued while they were offline waits for OUR restart.
+  function peerReturned(friendId: string): void {
+    lastSeen.set(friendId, Date.now())
+    useApp.getState().setOnline(friendId, true)
+    void api.peerBecameAvailable(friendId).catch(() => {})
+    void gapi.resendInvites(friendId).catch(() => {})
+    void sapi.resendInvites(friendId).catch(() => {})
+  }
   voice = vapi
   api.onCallSignal((from, kind, callId) => vapi.handleSignal(from, kind, callId))
   const inst = new P2P(
@@ -169,17 +179,15 @@ export async function startSession(identity: Identity): Promise<void> {
           }
           return
         }
+        const wasOffline = !s.friends.some((f) => f.userId === userId && f.online)
         s.renameFriend(userId, name)
         s.setOnline(userId, true)
+        // Hello-driven return (join handshake missed): flush queued traffic
+        // now, not on our next restart.
+        if (wasOffline) peerReturned(userId)
       },
       onPeerOnline: (friendId) => {
-        lastSeen.set(friendId, Date.now())
-        useApp.getState().setOnline(friendId, true)
-        // Flush anything queued while offline + pull missed history.
-        void api.peerBecameAvailable(friendId).catch(() => {})
-        // Retry group/server invites they may have missed while offline.
-        void gapi.resendInvites(friendId).catch(() => {})
-        void sapi.resendInvites(friendId).catch(() => {})
+        peerReturned(friendId)
       },
       onPeerOffline: (friendId) => useApp.getState().setOnline(friendId, false),
     },

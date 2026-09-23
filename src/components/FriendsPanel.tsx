@@ -28,6 +28,7 @@ export default function FriendsPanel() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [knock, setKnock] = useState<Record<string, 'busy' | 'done'>>({})
 
   if (!identity) return null
   const me = identity
@@ -87,9 +88,25 @@ export default function FriendsPanel() {
   }
 
   async function retry(userId: string) {
+    setError(null)
+    setKnock((prev) => ({ ...prev, [userId]: 'busy' }))
     try {
       await getP2P()?.sendFriendRequest(userId)
+      setKnock((prev) => ({ ...prev, [userId]: 'done' }))
+      window.setTimeout(() => {
+        setKnock((prev) => {
+          if (prev[userId] !== 'done') return prev
+          const next = { ...prev }
+          delete next[userId]
+          return next
+        })
+      }, 3000)
     } catch (e) {
+      setKnock((prev) => {
+        const next = { ...prev }
+        delete next[userId]
+        return next
+      })
       setError(e instanceof Error ? e.message : 'Could not re-send the knock.')
     }
   }
@@ -192,8 +209,16 @@ export default function FriendsPanel() {
                 <div className="truncate text-sm">{r.displayName}</div>
                 <div className="text-[11px] text-rascal-amber">waiting for them... (retries automatically)</div>
                 <div className="mt-1.5 flex gap-1.5">
-                  <button onClick={() => retry(r.userId)} className="flex-1 rounded-md bg-white/5 px-2 py-1 text-[11px] hover:text-white">
-                    Knock again
+                  <button
+                    onClick={() => retry(r.userId)}
+                    disabled={knock[r.userId] === 'busy'}
+                    className="flex-1 rounded-md bg-white/5 px-2 py-1 text-[11px] hover:text-white disabled:opacity-50"
+                  >
+                    {knock[r.userId] === 'busy'
+                      ? 'Knocking…'
+                      : knock[r.userId] === 'done'
+                        ? 'Knocked ✓'
+                        : 'Knock again'}
                   </button>
                   <button onClick={() => removeRequest(r.userId)} className="flex-1 rounded-md bg-white/5 px-2 py-1 text-[11px] text-rascal-dim hover:text-white">
                     Cancel
