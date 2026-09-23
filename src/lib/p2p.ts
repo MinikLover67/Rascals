@@ -455,6 +455,8 @@ interface DmEntry {
   friendId: string
   peers: Set<string>
   senders: Map<MsgActionName, Sender>
+  /** Broadcast hello sender (presence heartbeat); set for DM rooms. */
+  hello?: (data: HelloPayload) => Promise<void>
 }
 
 export class P2P {
@@ -517,6 +519,21 @@ export class P2P {
     return (this.peerFileVersion.get(friendId) ?? 1) >= 2
   }
 
+  /** Re-broadcast hello in every joined DM room with live peers.
+   * Presence self-heals without restarts: a rebooted peer's hellos flip it
+   * back online on the other side within one interval, even if the join
+   * handshake was missed (broadcast, never targeted at stale peer ids). */
+  async broadcastHellos(): Promise<void> {
+    for (const entry of this.dmRooms.values()) {
+      if (entry.peers.size === 0 || !entry.hello) continue
+      try {
+        await entry.hello(await this.makeHello(entry.friendId))
+      } catch {
+        // room died mid-beat — next interval retries
+      }
+    }
+  }
+
   /** Join my lobby and listen for incoming friend requests. */
   async start(): Promise<void> {
     if (this.lobby) return
@@ -576,6 +593,7 @@ export class P2P {
     this.dmRooms.set(friendId, entry)
 
     const hello = room.makeAction<HelloPayload>('hello')
+    entry.hello = (payload) => hello.send(payload)
     const wire = (name: MsgActionName) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const act = room.makeAction<any>(name)

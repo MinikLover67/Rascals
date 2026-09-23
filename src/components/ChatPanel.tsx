@@ -125,7 +125,34 @@ function Bubble({
   onDelete: (m: ChatMessage) => void
 }) {
   const [picking, setPicking] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const copyTimer = useRef<number | null>(null)
   const ytId = m.deleted || m.file ? null : extractYouTubeId(m.body)
+
+  async function copyMessage() {
+    const text = m.body || m.file?.name || ''
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      // Clipboard API blocked: legacy execCommand fallback.
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      } catch {
+        return
+      }
+    }
+    setCopied(true)
+    if (copyTimer.current) window.clearTimeout(copyTimer.current)
+    copyTimer.current = window.setTimeout(() => setCopied(false), 1500)
+  }
 
   if (m.sys) {
     return (
@@ -155,7 +182,7 @@ function Bubble({
         }`}
       >
         {senderName && (
-          <div className="mb-0.5 text-[11px] font-semibold text-rascal-accent">{senderName}</div>
+          <div className="mb-0.5 truncate text-[11px] font-semibold text-rascal-accent" title={senderName}>{senderName}</div>
         )}
         {pinned && (
           <div className={`mb-1 text-[10px] font-semibold uppercase tracking-wider ${m.mine ? 'text-white/70' : 'text-rascal-amber'}`}>
@@ -212,6 +239,9 @@ function Bubble({
             </button>
             <button onClick={() => setPicking((v) => !v)} className="underline underline-offset-2 hover:opacity-80">
               react
+            </button>
+            <button onClick={() => void copyMessage()} className="underline underline-offset-2 hover:opacity-80">
+              {copied ? 'copied!' : 'copy'}
             </button>
             <button
               onClick={() => {
@@ -446,6 +476,15 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
     [chatKey, api],
   )
 
+  // Autogrow the composer with the draft (no inner scrollbar until max
+  // height). Runs above the early returns like all hooks.
+  useEffect(() => {
+    const el = textRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`
+  }, [draft, chatKey])
+
   // Staged attachments: drops and the Attach button park files here until
   // the user presses Enter/Send. Declared with the other hooks (above the
   // early returns). Cap keeps a wild multi-select from eating memory.
@@ -494,6 +533,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
 
   const isGroup = group !== undefined
   const title = isGroup ? group.name : (friend?.displayName ?? '')
+  const shortTitle = [...title].length > 24 ? `${[...title].slice(0, 24).join('')}…` : title
   const online = isGroup ? groupOnline : (friend?.online ?? false)
   const statusText = isGroup
     ? `${group.members.length} member${group.members.length === 1 ? '' : 's'} - end-to-end encrypted`
@@ -504,7 +544,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
   // eslint-disable-next-line react/purity
   const typing = Date.now() - typingTs < 4000
   const typingLabel = isGroup ? (typingName || 'Someone') : (friend?.displayName ?? '')
-  const placeholder = `Message ${title}${online ? '' : ' (offline - will queue)'}`
+  const placeholder = `Message ${shortTitle}${online ? '' : ' (offline - will queue)'}`
 
   async function send() {
     const text = draft.trim()
@@ -679,7 +719,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
           )
         })}
         {typing && (
-          <div className="text-xs italic text-rascal-dim">
+          <div className="truncate text-xs italic text-rascal-dim">
             {typingLabel} is typing...
           </div>
         )}
@@ -778,7 +818,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
             }}
             rows={1}
             placeholder={pending.length > 0 ? 'Add a message (optional) — Enter sends everything' : placeholder}
-            className="max-h-32 flex-1 resize-none rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm outline-none focus:border-rascal-accent"
+            className="max-h-32 flex-1 resize-none overflow-y-auto rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm outline-none focus:border-rascal-accent"
           />
           <button
             onClick={() => void send()}

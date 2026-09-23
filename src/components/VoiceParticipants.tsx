@@ -42,13 +42,13 @@ export default function VoiceParticipants() {
           <span
             key={p.peerId}
             title={`${p.name}${p.muted ? ' (muted)' : ''}${p.sharing ? ' (sharing)' : ''}`}
-            className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] ${
+            className={`flex max-w-56 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] ${
               p.speaking ? 'border-rascal-green bg-rascal-green/10' : 'border-rascal-line bg-black/20'
             }`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${p.muted ? 'bg-red-400' : 'bg-rascal-green'}`} />
-            {p.name}
-            {p.muted && <span className="text-red-300">muted</span>}
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${p.muted ? 'bg-red-400' : 'bg-rascal-green'}`} />
+            <span className="truncate">{p.name}</span>
+            {p.muted && <span className="shrink-0 text-red-300">muted</span>}
           </span>
         ))}
       </div>

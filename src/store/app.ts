@@ -285,11 +285,28 @@ function load<T>(key: string, fallback: T): T {
   }
 }
 
+/** One-time boot migration: names stored before inbound shaping landed can
+ * exceed the cap (or be whitespace bombs) — shape them into range. */
+function shapeStoredName(raw: unknown, userId: string): string {
+  const clean = shapeDisplayName(raw)
+  return clean || shortUid(typeof userId === 'string' ? userId : '')
+}
+
 export const useApp = create<AppState>((set) => ({
   identity: null,
-  friends: load<Friend[]>(FRIENDS_KEY, []).map((f) => ({ ...f, online: false })),
-  requests: load<FriendRequest[]>(REQUESTS_KEY, []),
-  recent: load<RecentRemoval[]>(RECENT_KEY, []),
+  friends: load<Friend[]>(FRIENDS_KEY, []).map((f) => ({
+    ...f,
+    online: false,
+    displayName: shapeStoredName(f.displayName, f.userId),
+  })),
+  requests: load<FriendRequest[]>(REQUESTS_KEY, []).map((r) => ({
+    ...r,
+    displayName: shapeStoredName(r.displayName, r.userId),
+  })),
+  recent: load<RecentRemoval[]>(RECENT_KEY, []).map((r) => ({
+    ...r,
+    displayName: shapeStoredName(r.displayName, r.userId),
+  })),
   selectedFriend: null,
   messages: load<Record<string, ChatMessage[]>>(MESSAGES_KEY, {}),
   typing: {},

@@ -21,6 +21,10 @@ async function load(): Promise<Identity | null> {
     if (!raw) return null
     const parsed = JSON.parse(raw) as Identity
     if (!parsed.userId || !parsed.secretKey) return null
+    // Tolerate names stored by older builds (cap like rename does).
+    if (typeof parsed.name === 'string' && parsed.name.length > 64) {
+      parsed.name = parsed.name.slice(0, 64)
+    }
     return parsed
   } catch {
     return null

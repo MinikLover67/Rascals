@@ -29,7 +29,7 @@ export default function IncomingCallModal() {
         <div className="mx-auto flex h-16 w-16 animate-pulse items-center justify-center rounded-full bg-rascal-accent text-2xl font-bold text-white">
           {call.peerName.slice(0, 1).toUpperCase()}
         </div>
-        <h2 className="mt-3 text-lg font-bold">{call.peerName}</h2>
+          <h2 className="mt-3 truncate px-2 text-lg font-bold">{call.peerName}</h2>
         <p className="mt-1 text-sm text-rascal-dim">Incoming voice call...</p>
         {err && <p className="mt-2 text-xs text-red-300">{err}</p>}
         <div className="mt-4 flex gap-2">

@@ -18,6 +18,9 @@ let groupChat: GroupApi | null = null
 let serverChat: ServerApi | null = null
 let voice: VoiceApi | null = null
 let retryTimer: number | null = null
+let helloTimer: number | null = null
+/** Last hello (or room join) seen per friend — drives the stale sweep. */
+const lastSeen = new Map<string, number>()
 /** Random per app launch — tells two diagnostics captures apart. */
 let sessionNonce = ''
 
@@ -57,6 +60,16 @@ export function stopSession(): void {
   if (retryTimer !== null) {
     clearInterval(retryTimer)
     retryTimer = null
+  }
+  if (helloTimer !== null) {
+    clearInterval(helloTimer)
+    helloTimer = null
+  }
+  try {
+    window.removeEventListener('focus', refreshHellos)
+    window.removeEventListener('online', refreshHellos)
+  } catch {
+    // listeners never attached — nothing to do
   }
   voice?.teardown()
   p2p?.stop()
@@ -138,6 +151,7 @@ export async function startSession(identity: Identity): Promise<void> {
         const s = useApp.getState()
         // Peer-controlled: shape before storing (hello re-sends on every connect).
         const name = shapeDisplayName(displayName) || shortUid(userId)
+        lastSeen.set(userId, Date.now())
         const known = s.friends.some((f) => f.userId === userId)
         if (!known) {
           // Stranger said hello in our pairwise room: only accept if WE
@@ -155,6 +169,7 @@ export async function startSession(identity: Identity): Promise<void> {
         s.setOnline(userId, true)
       },
       onPeerOnline: (friendId) => {
+        lastSeen.set(friendId, Date.now())
         useApp.getState().setOnline(friendId, true)
         // Flush anything queued while offline + pull missed history.
         void api.peerBecameAvailable(friendId).catch(() => {})
@@ -202,6 +217,35 @@ export async function startSession(identity: Identity): Promise<void> {
       // retry must never break the app
     }
   }, RETRY_MS)
+  // Presence self-heal: re-broadcast hellos every 30 s so a rebooted peer
+  // flips back online without anyone restarting, and sweep friends with no
+  // sign of life for 90 s back to offline (stale the other way). Broadcast,
+  // never targeted — stale peer ids in the room don't matter.
+  if (helloTimer !== null) clearInterval(helloTimer)
+  const beat = (): void => {
+    try {
+      void p2p?.broadcastHellos().catch(() => {})
+      const st = useApp.getState()
+      const now = Date.now()
+      for (const f of st.friends) {
+        if (!f.online) continue
+        if (now - (lastSeen.get(f.userId) ?? 0) > 90000) st.setOnline(f.userId, false)
+      }
+    } catch {
+      // heartbeat must never break the app
+    }
+  }
+  helloTimer = window.setInterval(beat, 30000)
+  window.addEventListener('focus', refreshHellos)
+  window.addEventListener('online', refreshHellos)
+}
+
+function refreshHellos(): void {
+  try {
+    void getP2P()?.broadcastHellos().catch(() => {})
+  } catch {
+    // ignore
+  }
 }
 
 /** Accept an incoming request: befriend + join pairwise room (hellos do the rest). */
