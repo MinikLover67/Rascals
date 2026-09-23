@@ -142,6 +142,7 @@ export default function FriendsPanel() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3 scroll-thin">
+        <ConnHealth />
         <div className="text-xs font-semibold uppercase tracking-wider text-rascal-dim">
           Add friend
         </div>
@@ -349,8 +350,50 @@ export default function FriendsPanel() {
 
 // Live signaling dot: green when at least one relay is connected, red when
 // none are, dim while unknown. Polled — cheap, synchronous, never throws.
-function ConnDot() {
-  const [connected, setConnected] = useState<number | null>(null)
+// Weak-connection banner: when almost no signaling relays are reachable
+// (captive portal, firewall, VPN, DNS trouble), SAY SO where invites live —
+// otherwise "request sent, nothing arrives" looks like an app bug.
+function ConnHealth() {
+  const [weak, setWeak] = useState(false)
+  useEffect(() => {
+    let live = true
+    const poll = () => {
+      void import('../lib/session').then(({ diagnostics }) => {
+        if (!live) return
+        try {
+          const d = diagnostics()
+          if (!d || d.relays.length === 0) {
+            setWeak(false)
+            return
+          }
+          const up = d.relays.filter((r) => r.state === 'connected').length
+          setWeak(up <= 1)
+        } catch {
+          setWeak(false)
+        }
+      })
+    }
+    poll()
+    const t = setInterval(poll, 15000)
+    return () => {
+      live = false
+      clearInterval(t)
+    }
+  }, [])
+  if (!weak) return null
+  return (
+    <div className="mb-2 rounded-lg border border-rascal-amber/50 bg-rascal-amber/10 p-2 text-[11px] leading-relaxed">
+      <span className="font-bold text-rascal-amber">Weak connection.</span>{' '}
+      <span className="text-rascal-dim">
+        Almost no signaling relays reachable — invites and messages may not
+        arrive. Check internet, VPN, firewall, or try another network. Details
+        in Settings → Connection.
+      </span>
+    </div>
+  )
+}
+
+function ConnDot() {  const [connected, setConnected] = useState<number | null>(null)
   useEffect(() => {
     let live = true
     const poll = () => {
