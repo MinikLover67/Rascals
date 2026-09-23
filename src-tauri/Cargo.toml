@@ -1,7 +1,7 @@
 [package]
 name = "rascals"
 version = "0.1.12"
-description = "Rascals — private peer-to-peer chat for Windows and Linux"
+description = "Rascals — private peer-to-peer chat for Windows"
 authors = ["Rascals"]
 edition = "2021"
 rust-version = "1.77"

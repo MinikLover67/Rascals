@@ -2,21 +2,10 @@
 
 Living checklist of unfinished work. Checked items are done and proven.
 
-## 1. Linux support (Arch first)
+Linux support was dropped: Windows-only. (The Arch installer, CI AppImage/deb
+builds, and updater fragments were removed — history kept, no revival planned.)
 
-- [x] CI workflow builds signed AppImage + deb on version tags (`.github/workflows/release.yml`)
-- [x] Square-icon fix for the AppImage bundler + `contents: write` for release uploads
-- [x] `scripts/install-linux.sh` one-liner (pacman deps, AppImage to `~/Applications`, start-menu entry)
-- [x] Desktop bundle targets fixed (`appimage`/`deb` in `tauri.conf.json` + deb deps) — was Windows-only
-- [x] Interactive installer: prompts for start-menu entry, optional `~/Desktop` shortcut, launch-now (`--yes`/`--no-*` for pipes)
-- [x] CI uploads updater artifacts (`*.AppImage.tar.gz*` + `latest-linux.json` fragment) and merges into `latest.json` via `release.ps1 -LinuxSignature`
-- [ ] CI run green on latest main (dispatch in flight — verify at GitHub Actions)
-- [ ] AppImage + deb attached to the GitHub release
-- [ ] Fresh-machine test: `curl -fsSL https://raw.githubusercontent.com/MinikLover67/Rascals/main/scripts/install-linux.sh | bash` on Arch KDE, launch, add friend, send message
-- [ ] Auto-update path on Linux (test updater picks up next release)
-- [ ] Later: deb install path, other distros (Ubuntu/Fedora package names differ)
-
-## 2. File sharing
+## 1. File sharing
 
 Core is DONE (E2EE 32 KB chunks, 25 MB cap, resume, thumbnails, IndexedDB cache, save-to-disk, proven peer-to-peer by `scripts/e2e-files.mjs`). Remaining polish:
 
@@ -28,7 +17,7 @@ Core is DONE (E2EE 32 KB chunks, 25 MB cap, resume, thumbnails, IndexedDB cache,
 - [ ] File previews for common types (PDF, text, video thumbnail)
 - [ ] Group/server file flow re-tested (per-file keys exist — needs a live multi-peer check)
 
-## 3. Screenshare in call (Discord-style)
+## 2. Screenshare in call (Discord-style)
 
 Core exists (`getDisplayMedia` in `src/lib/voice.ts`, tiles in `VoiceParticipants.tsx`, per-peer shares in group voice). Still missing vs Discord:
 
@@ -39,7 +28,7 @@ Core exists (`getDisplayMedia` in `src/lib/voice.ts`, tiles in `VoiceParticipant
 - [ ] Stop-sharing is clean for all viewers (no frozen tile)
 - [ ] Live two-laptop test: share screen mid-call, confirm the other side sees it smoothly
 
-## 4. Everything else pending
+## 3. Everything else pending
 
 - [ ] Rotate the GitHub token to minimal scopes (it currently has full scopes)
 - [ ] Delete temp/proof PNGs + scratch scripts from repo root before next release push

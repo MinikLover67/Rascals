@@ -12,9 +12,7 @@
 param(
   [Parameter(Mandatory = $true)][string]$Version,
   [string]$Notes = "",
-  [string]$BaseUrl = "",
-  [string]$LinuxSignature = "",
-  [string]$LinuxAssetName = ""
+  [string]$BaseUrl = ""
 )
 
 $ErrorActionPreference = 'Stop'
@@ -100,25 +98,16 @@ Copy-Item $setup.FullName (Join-Path $out $setup.Name) -Force
 Copy-Item $setupSig.FullName (Join-Path $out ($setup.Name + '.sig')) -Force
 if ($msi) { Copy-Item $msi.FullName (Join-Path $out $msi.Name) -Force }
 
-$platforms = [ordered]@{
-  'windows-x86_64' = [ordered]@{
-    signature = (Get-Content ($setupSig.FullName) -Raw).Trim()
-    url = "$BaseUrl/$($setup.Name)"
-  }
-}
-if ($LinuxSignature -ne "" -and $LinuxAssetName -ne "") {
-  $sig = $LinuxSignature
-  if (Test-Path $LinuxSignature) { $sig = (Get-Content $LinuxSignature -Raw).Trim() }
-  $platforms['linux-x86_64'] = [ordered]@{
-    signature = $sig
-    url = "$BaseUrl/$LinuxAssetName"
-  }
-}
 $manifest = [ordered]@{
   version = $Version
   notes = $Notes
   pub_date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-  platforms = $platforms
+  platforms = [ordered]@{
+    'windows-x86_64' = [ordered]@{
+      signature = (Get-Content ($setupSig.FullName) -Raw).Trim()
+      url = "$BaseUrl/$($setup.Name)"
+    }
+  }
 }
 $manifest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $out 'latest.json')
 
