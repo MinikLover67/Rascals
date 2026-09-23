@@ -23,6 +23,8 @@ let helloTimer: number | null = null
 const lastSeen = new Map<string, number>()
 /** Last wedge-heal pass (room rejoins for silent-but-listed peers). */
 let lastWedgeHeal = 0
+/** Last lobby rejoin (request listening also dies silently on flaps). */
+let lastLobbyRejoin = 0
 /** Random per app launch — tells two diagnostics captures apart. */
 let sessionNonce = ''
 
@@ -237,6 +239,12 @@ export async function startSession(identity: Identity): Promise<void> {
         if (now - (lastSeen.get(f.userId) ?? 0) > 90000) st.setOnline(f.userId, false)
       }
       maybeWedgeHeal(120000)
+      // Lobby request listening dies silently too (sleep/flaps) — rejoin on
+      // a slow cadence so incoming requests keep working without restarts.
+      if (now - lastLobbyRejoin > 300000) {
+        lastLobbyRejoin = now
+        void inst?.rejoinLobby().catch(() => {})
+      }
     } catch {
       // heartbeat must never break the app
     }
@@ -270,6 +278,13 @@ function refreshHellos(): void {
   try {
     void getP2P()?.broadcastHellos().catch(() => {})
     maybeWedgeHeal(30000)
+    // Sleep/wake is the classic room killer — rejoin the lobby whenever the
+    // user returns (gated so alt-tabbing doesn't churn).
+    const now = Date.now()
+    if (now - lastLobbyRejoin > 60000) {
+      lastLobbyRejoin = now
+      void getP2P()?.rejoinLobby().catch(() => {})
+    }
   } catch {
     // ignore
   }

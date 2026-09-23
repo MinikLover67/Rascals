@@ -561,8 +561,19 @@ export class P2P {
     }
   }
 
-  /** Send a friend request to the owner of a lobby room. */
-  async sendFriendRequest(targetUserId: string): Promise<void> {
+  /** Leave + rejoin my lobby (recovers silently-dead request listening
+   * after sleep/network flaps — nothing else rejoins it mid-session). */
+  async rejoinLobby(): Promise<void> {
+    try {
+      await this.lobby?.leave()
+    } catch {
+      // already gone
+    }
+    this.lobby = null
+    await this.start()
+  }
+
+  /** Send a friend request to the owner of a lobby room. */  async sendFriendRequest(targetUserId: string): Promise<void> {
     const payload = await this.makeHello(targetUserId)
     const roomId = lobbyRoomFor(targetUserId)
     const existing = this.lobbySends.get(roomId)
