@@ -29,7 +29,9 @@ export function alertIncomingDM(friendId: string, preview: string): void {
   if (openChatKey() !== friendId || backgrounded()) {
     const raw =
       useApp.getState().friends.find((f) => f.userId === friendId)?.displayName ?? 'Someone'
-    void notifyUser(noteName(raw), preview.slice(0, 140))
+    const name = noteName(raw)
+    void notifyUser(name, preview.slice(0, 140))
+    useApp.getState().pushToast({ title: name, body: preview.slice(0, 140), chatKey: friendId })
   }
 }
 
@@ -41,13 +43,17 @@ export function alertIncomingGroup(chatKey: string, senderId: string, preview: s
     const groupName = s.groups[gid]?.name ?? 'Group'
     const sender =
       s.friends.find((f) => f.userId === senderId)?.displayName ?? 'Someone'
-    void notifyUser(`${noteName(sender)} in ${groupName}`, preview.slice(0, 140))
+    const title = `${noteName(sender)} in ${groupName}`
+    void notifyUser(title, preview.slice(0, 140))
+    s.pushToast({ title, body: preview.slice(0, 140), chatKey })
   }
 }
 
 export function alertFriendRequest(displayName: string): void {
   playSound('request')
-  void notifyUser('New friend request', `${noteName(displayName)} wants to connect on Rascals.`)
+  const name = noteName(displayName)
+  void notifyUser('New friend request', `${name} wants to connect on Rascals.`)
+  useApp.getState().pushToast({ title: 'New friend request', body: `${name} wants to connect.`, chatKey: null })
 }
 
 export function alertCallMissed(peerName: string): void {

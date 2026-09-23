@@ -164,6 +164,15 @@ export function groupIdFromChatKey(chatKey: string): string | null {
 export const EMPTY_MESSAGES: ChatMessage[] = []
 export const EMPTY_PINS: string[] = []
 
+/** In-app toast (always visible, unlike OS notifications). Never persisted. */
+export interface Toast {
+  id: string
+  title: string
+  body: string
+  /** chat to open on click (friend userId or g:groupId), if any */
+  chatKey: string | null
+}
+
 interface AppState {
   identity: Identity | null
   friends: Friend[]
@@ -198,6 +207,10 @@ interface AppState {
   }
   /** Sealed file-content keys by file id. */
   fkeys: Record<string, string>
+  /** Transient in-app toasts (never persisted). */
+  toasts: Toast[]
+  pushToast: (t: Omit<Toast, 'id'>) => void
+  dismissToast: (id: string) => void
   /** Transient voice/call state (never persisted). */
   voice: VoiceState
   setIdentity: (id: Identity | null) => void
@@ -310,6 +323,12 @@ export const useApp = create<AppState>((set) => ({
   fkeys: load<Record<string, string>>(FKEYS_KEY, {}),
   voice: { call: null, channel: null, muted: false, deafened: false, sharing: false, participants: [] },
   availableUpdate: null,
+  toasts: [],
+  pushToast: (t) =>
+    set((s) => ({
+      toasts: [...s.toasts.slice(-3), { ...t, id: `${Date.now()}-${Math.random().toString(36).slice(2)}` }],
+    })),
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   setIdentity: (identity) => set({ identity }),
   addFriend: (f) =>
     set((s) =>

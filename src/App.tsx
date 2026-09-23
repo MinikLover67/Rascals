@@ -6,6 +6,7 @@ import GroupsPanel from './components/GroupsPanel'
 import IncomingCallModal from './components/IncomingCallModal'
 import ServerChannels from './components/ServerChannels'
 import TitleBar from './components/TitleBar'
+import Toasts from './components/Toasts'
 import UpdateBanner from './components/UpdateBanner'
 import VoiceBar from './components/VoiceBar'
 import { ensureIdentity, importIdentity, type Identity } from './lib/identity'
@@ -390,6 +391,7 @@ export default function App() {
           </div>
           <VoiceBar />
           <IncomingCallModal />
+          <Toasts />
         </>
       ) : (
         <Onboarding onDone={setIdentity} />
