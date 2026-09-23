@@ -78,7 +78,7 @@ export default function NewGroupModal({
               <span
                 className={`h-2.5 w-2.5 rounded-full ${f.online ? 'bg-rascal-green' : 'bg-rascal-dim/40'}`}
               />
-              <span className="text-sm">{f.displayName}</span>
+              <span className="min-w-0 flex-1 truncate text-sm">{f.displayName}</span>
             </label>
           ))}
         </div>

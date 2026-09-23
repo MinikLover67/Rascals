@@ -1,7 +1,9 @@
-// REAL file/image sharing E2E: Alice attaches a generated PNG, Bob must see it
-// render (E2EE chunks over the live relay network), then Bob replies in text.
+// REAL file/image sharing E2E: Alice attaches a generated PNG, presses Enter
+// (staged flow), Bob must see it render (E2EE chunks over the live relay
+// network), then a 5 MB binary measures throughput, then Bob replies in text.
 // Self-contained: starts vite as a child. ASCII only.
 import { spawn } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import { writeFileSync, rmSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 import path from 'node:path'
@@ -17,6 +19,9 @@ const PNG_B64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAACu+CtlAAAAFUlEQVR4nGP8z8AARQwMDAwMDEAMAwAsQgIkX+C6nwAAAABJRU5ErkJggg=='
 const IMG_PATH = path.join(process.cwd(), 'e2e-test-image.png')
 writeFileSync(IMG_PATH, Buffer.from(PNG_B64, 'base64'))
+// 5 MB random payload for throughput measurement.
+const BIG_PATH = path.join(process.cwd(), 'e2e-test-5mb.bin')
+writeFileSync(BIG_PATH, randomBytes(5 * 1024 * 1024))
 
 log('starting dev server...')
 const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js'], {
@@ -88,15 +93,31 @@ try {
   await a.locator('textarea').first().waitFor({ timeout: 15000 })
   log('chats open')
 
-  // Alice attaches the PNG (hidden input works with setInputFiles)
+  // Alice attaches the PNG (staged in the tray), then Enter sends it.
   await a.getByTestId('file-input').setInputFiles(IMG_PATH)
-  log('alice attached image, waiting for bob to render it...')
+  await a.getByTestId('pending-tray').waitFor({ timeout: 15000 })
+  log('staged in tray, pressing Enter...')
+  const tPng0 = Date.now()
+  await a.locator('textarea').first().press('Enter')
+  log('alice sent image, waiting for bob to render it...')
   const bobImg = b.locator('[data-testid="attachment"] img').first()
   await bobImg.waitFor({ timeout: 180000 })
-  log('BOB SEES THE IMAGE - E2EE file transfer works')
+  log(`BOB SEES THE IMAGE - E2EE file transfer works (${Date.now() - tPng0} ms end to end)`)
   const src = await bobImg.getAttribute('src')
   log('image src is blob url:', src && src.startsWith('blob:') ? 'yes' : 'NO (' + String(src).slice(0, 40) + ')')
   if (!src || !src.startsWith('blob:')) throw new Error('image did not load from local blob')
+
+  // 5 MB throughput: stage, Enter, time until bob's card flips ready.
+  await a.getByTestId('file-input').setInputFiles(BIG_PATH)
+  await a.getByTestId('pending-tray').waitFor({ timeout: 15000 })
+  const tBig0 = Date.now()
+  await a.locator('textarea').first().press('Enter')
+  log('5 MB sending, waiting for bob...')
+  await b.getByText('e2e-test-5mb.bin').first().waitFor({ timeout: 300000 })
+  // Ready = progress bar gone (Save link present for generic files).
+  await b.getByText('Save', { exact: true }).first().waitFor({ timeout: 300000 })
+  const ms = Date.now() - tBig0
+  log(`5 MB DONE in ${ms} ms = ${(5 / (ms / 1000)).toFixed(2)} MB/s end to end`)
 
   // Bob replies in text, Alice reads it back
   await b.locator('textarea').first().fill('got the pic!')
@@ -117,6 +138,7 @@ try {
   log('FAIL:', String(e && e.message ? e.message : e).slice(0, 500))
 }
 try { rmSync(IMG_PATH) } catch {}
+try { rmSync(BIG_PATH) } catch {}
 await browser.close().catch(() => {})
 try { vite.kill() } catch {}
 log('dev server stopped')

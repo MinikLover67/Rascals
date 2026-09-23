@@ -49,6 +49,18 @@ body {
   -webkit-app-region: no-drag;
 }
 
+/* Message links: accent elsewhere, white inside your own bubbles where
+   the accent background would swallow an accent link. Visited matches
+   unvisited so clicked links never turn browser-purple. */
+.msg-body a,
+.msg-body a:visited {
+  color: var(--color-rascal-accent);
+}
+.msg-body.msg-mine a,
+.msg-body.msg-mine a:visited {
+  color: #fff;
+}
+
 .scroll-thin::-webkit-scrollbar {
   width: 8px;
 }

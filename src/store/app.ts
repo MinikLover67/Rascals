@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Identity } from '../lib/identity'
+import { shapeDisplayName, shortUid } from '../lib/format'
 import type { GMsg } from '../lib/p2p'
 
 export interface Friend {
@@ -322,13 +323,17 @@ export const useApp = create<AppState>((set) => ({
       selectedFriend: s.selectedFriend === userId ? null : s.selectedFriend,
     })),
   renameFriend: (userId, displayName) =>
-    set((s) => ({
-      friends: s.friends.map((f) =>
-        f.userId === userId && f.displayName !== displayName
-          ? { ...f, displayName }
-          : f,
-      ),
-    })),
+    set((s) => {
+      // Defensive: hello-driven renames arrive peer-controlled.
+      const clean = shapeDisplayName(displayName) || shortUid(userId)
+      return {
+        friends: s.friends.map((f) =>
+          f.userId === userId && f.displayName !== clean
+            ? { ...f, displayName: clean }
+            : f,
+        ),
+      }
+    }),
   setOnline: (userId, online) =>
     set((s) => ({
       friends: s.friends.map((f) =>

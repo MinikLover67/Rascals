@@ -12,6 +12,7 @@
     "core:tray:default",
     "autostart:default",
     "notification:default",
+    "opener:default",
     "updater:default",
     "process:default"
   ]

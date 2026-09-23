@@ -232,7 +232,8 @@ export default function FriendsPanel() {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (window.confirm(`Remove ${f.displayName} as a friend? Chat history is kept.`))
+                  const label = [...f.displayName].length > 30 ? `${[...f.displayName].slice(0, 30).join('')}…` : f.displayName
+                  if (window.confirm(`Remove ${label} as a friend? Chat history is kept.`))
                     void unfriend(f.userId).catch(() => {})
                 }}
                 title="Remove friend"

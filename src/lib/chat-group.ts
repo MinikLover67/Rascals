@@ -23,10 +23,13 @@ import { getBlob, putBlob } from './idb'
 import type { Identity } from './identity'
 import {
   assembleBlob,
-  bytesToB64,
   CHUNK_BYTES,
+  CHUNK_SEAL_AHEAD,
+  lowestMissing,
   MAX_FILE_BYTES,
+  sealChunkAt,
   shapeContent,
+  shouldReportProgress,
   type AnyInvitePayload,
   type CtrlInvitePayload,
   type MsgContent,
@@ -514,16 +517,23 @@ export function bindGroupChat(
     const key = await openFileKey(fileId)
     if (!key) return
     const total = Math.max(1, Math.ceil(blob.size / CHUNK_BYTES))
-    for (let seq = fromSeq; seq < total; seq++) {
+    for (let base = fromSeq; base < total; base += CHUNK_SEAL_AHEAD) {
       if (inst.groupPeerCount(groupId) === 0) break
-      const slice = blob.slice(seq * CHUNK_BYTES, (seq + 1) * CHUNK_BYTES)
-      const bytes = new Uint8Array(await slice.arrayBuffer())
-      const { nonce, box } = await seal(key, bytesToB64(bytes))
-      await inst
-        .sendGroupAction(groupId, 'gfchunk', {
-          v: 1, groupId, sender: me, fileId, seq, total, nonce, box,
-        })
-        .catch(() => {})
+      // Seal the batch concurrently; sends stay in order on the wire.
+      const end = Math.min(total, base + CHUNK_SEAL_AHEAD)
+      const sealed = await Promise.all(
+        Array.from({ length: end - base }, (_, i) => sealChunkAt(blob, key, base + i)),
+      )
+      for (let i = 0; i < sealed.length; i++) {
+        if (inst.groupPeerCount(groupId) === 0) return
+        await inst
+          .sendGroupAction(groupId, 'gfchunk', {
+            v: 1, groupId, sender: me, fileId, seq: base + i, total, nonce: sealed[i].nonce, box: sealed[i].box,
+          })
+          .catch(() => {})
+      }
+      // Yield between batches so the receive path gets event-loop time.
+      if (end < total) await new Promise((r) => setTimeout(r, 0))
     }
   }
 
@@ -777,8 +787,11 @@ export function bindGroupChat(
     }
     const blob = await assembleBlob(ordered, msg.file.mime)
     if (!blob) {
+      // Keep the good chunks, resume from the first gap.
+      const missing = lowestMissing(entry.parts, total)
       incoming.delete(fileId)
       useApp.getState().setFileProgress(fileId, { total, received: 0, ready: false, friendId: chatKey })
+      void requestFile(chatKey, fileId, missing).catch(() => {})
       return
     }
     await putBlob(fileId, blob).catch(() => {})
@@ -894,13 +907,16 @@ export function bindGroupChat(
         }
         if (!entry.parts.has(msg.seq)) {
           entry.parts.set(msg.seq, plain)
-          const cur = useApp.getState().files[msg.fileId]
-          useApp.getState().setFileProgress(msg.fileId, {
-            total: msg.total,
-            received: entry.parts.size,
-            ready: cur?.ready ?? false,
-            friendId: chatKey,
-          })
+          // Throttled like DMs: hundreds of chunks must not re-render the UI each time.
+          if (shouldReportProgress(msg.fileId, entry.parts.size, msg.total)) {
+            const cur = useApp.getState().files[msg.fileId]
+            useApp.getState().setFileProgress(msg.fileId, {
+              total: msg.total,
+              received: entry.parts.size,
+              ready: cur?.ready ?? false,
+              friendId: chatKey,
+            })
+          }
         }
         await tryAssemble(chatKey, msg.fileId)
       })()

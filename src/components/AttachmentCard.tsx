@@ -4,6 +4,36 @@ import { chatFor } from '../lib/chatapi'
 import { fmtBytes, fmtDuration } from '../lib/format'
 import { useApp, type ChatMessage } from '../store/app'
 
+// Save affordance with a done state: the anchor download gives the browser
+// no completion event, so the button itself flips to "✓ Saved" on click.
+// Without this, users click repeatedly and fill Downloads with copies.
+function SaveLink({ url, filename }: { url: string; filename: string }) {
+  const [saved, setSaved] = useState(false)
+  if (saved) {
+    return (
+      <span
+        className="shrink-0 rounded-md bg-rascal-green/20 px-2 py-1 text-xs font-semibold text-rascal-green"
+        title={`Saved ${filename} — check your Downloads folder`}
+      >
+        ✓ Saved
+      </span>
+    )
+  }
+  return (
+    <a
+      href={url}
+      download={filename}
+      onClick={(e) => {
+        e.stopPropagation()
+        setSaved(true)
+      }}
+      className="shrink-0 rounded-md bg-white/10 px-2 py-1 text-xs font-semibold hover:bg-white/20"
+    >
+      Save
+    </a>
+  )
+}
+
 export default function AttachmentCard({
   chatKey,
   m,
@@ -52,9 +82,7 @@ export default function AttachmentCard({
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Request failed')
     }
-  }
-
-  return (
+  }  return (
     <div className="mb-1.5" data-testid="attachment" data-filename={file.name}>
       {isImage && (url || file.thumb) && (
         <button onClick={() => url && setZoom(true)} className="block max-w-full cursor-zoom-in">
@@ -65,12 +93,26 @@ export default function AttachmentCard({
           />
         </button>
       )}
+      {isImage && url && (
+        <div className="mt-1.5 flex items-center gap-2">
+          <SaveLink url={url} filename={file.name} />
+          <span className="truncate text-[11px] opacity-70">{file.name}</span>
+        </div>
+      )}
+      {isImage && !url && (
+        <div className="mt-1.5">
+          <button onClick={retry} className="text-[11px] underline underline-offset-2 opacity-70">
+            reload full image
+          </button>
+        </div>
+      )}
       {isVoice && url && (
         <div className="flex items-center gap-2">
           <audio controls src={url} className="h-9 max-w-full" preload="metadata" />
           {typeof file.duration === 'number' && (
             <span className="shrink-0 text-[11px] opacity-70">{fmtDuration(file.duration)}</span>
           )}
+          <SaveLink url={url} filename={file.name} />
         </div>
       )}
       {!isImage && !isVoice && (
@@ -84,16 +126,7 @@ export default function AttachmentCard({
             <div className="truncate text-xs font-semibold">{file.name}</div>
             <div className="text-[11px] opacity-70">{fmtBytes(file.size)}</div>
           </div>
-          {ready && url && (
-            <a
-              href={url}
-              download={file.name}
-              className="shrink-0 rounded-md bg-white/10 px-2 py-1 text-xs font-semibold hover:bg-white/20"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Save
-            </a>
-          )}
+          {ready && url && <SaveLink url={url} filename={file.name} />}
         </div>
       )}
       {!ready && (

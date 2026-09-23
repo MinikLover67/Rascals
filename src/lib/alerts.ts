@@ -4,6 +4,14 @@
 import { useApp } from '../store/app'
 import { notifyUser } from './notify'
 import { playSound } from './sound'
+import { shapeDisplayName } from './format'
+
+// OS notifications can't CSS-truncate: slice names short with an ellipsis.
+function noteName(raw: string): string {
+  const clean = shapeDisplayName(raw)
+  const short = [...clean].slice(0, 40).join('')
+  return short.length < [...clean].length ? `${short}…` : short || 'Someone'
+}
 
 function openChatKey(): string | null {
   const s = useApp.getState()
@@ -19,9 +27,9 @@ function backgrounded(): boolean {
 export function alertIncomingDM(friendId: string, preview: string): void {
   playSound('message')
   if (openChatKey() !== friendId || backgrounded()) {
-    const name =
+    const raw =
       useApp.getState().friends.find((f) => f.userId === friendId)?.displayName ?? 'Someone'
-    void notifyUser(name, preview.slice(0, 140))
+    void notifyUser(noteName(raw), preview.slice(0, 140))
   }
 }
 
@@ -33,16 +41,16 @@ export function alertIncomingGroup(chatKey: string, senderId: string, preview: s
     const groupName = s.groups[gid]?.name ?? 'Group'
     const sender =
       s.friends.find((f) => f.userId === senderId)?.displayName ?? 'Someone'
-    void notifyUser(`${sender} in ${groupName}`, preview.slice(0, 140))
+    void notifyUser(`${noteName(sender)} in ${groupName}`, preview.slice(0, 140))
   }
 }
 
 export function alertFriendRequest(displayName: string): void {
   playSound('request')
-  void notifyUser('New friend request', `${displayName} wants to connect on Rascals.`)
+  void notifyUser('New friend request', `${noteName(displayName)} wants to connect on Rascals.`)
 }
 
 export function alertCallMissed(peerName: string): void {
   playSound('request')
-  void notifyUser('Missed voice call', `${peerName} called while you were away.`)
+  void notifyUser('Missed voice call', `${noteName(peerName)} called while you were away.`)
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent as ReactClipboardEvent } from 'react'
 import AttachmentCard from './AttachmentCard'
 import GifPicker from './GifPicker'
 import GroupInfoModal from './GroupInfoModal'
@@ -16,6 +16,8 @@ import { markReadNow, useApp, EMPTY_MESSAGES, EMPTY_PINS, type ChatMessage } fro
 import { shortUid, fmtBytes } from '../lib/format'
 import { MAX_FILE_BYTES } from '../lib/chat'
 import { onDropFiles } from '../lib/dropfiles'
+import { collectPastedFiles } from '../lib/clipboard'
+import { onMessageLinkClick } from '../lib/links'
 
 function fmtTime(ts: number): string {
   const d = new Date(ts)
@@ -146,9 +148,9 @@ function Bubble({
   return (
     <div id={`msg-${m.id}`} className={`group flex scroll-mt-4 ${m.mine ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[75%] rounded-2xl px-3 py-2 ${
+        className={`msg-body max-w-[75%] rounded-2xl px-3 py-2 ${
           m.mine
-            ? 'rounded-br-md bg-rascal-accent/90 text-white'
+            ? 'msg-mine rounded-br-md bg-rascal-accent/90 text-white'
             : 'rounded-bl-md bg-white/[0.06]'
         }`}
       >
@@ -174,6 +176,7 @@ function Bubble({
           <div
             className="text-sm leading-relaxed break-words"
             dangerouslySetInnerHTML={{ __html: renderMarkdown(m.body) }}
+            onClickCapture={onMessageLinkClick}
           />
         )}
         {ytId && <YouTubeCard videoId={ytId} />}
@@ -395,6 +398,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
   const [fileErr, setFileErr] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const textRef = useRef<HTMLTextAreaElement>(null)
   const typingTimer = useRef<number | null>(null)
   const typingOn = useRef(false)
   const api = useMemo(() => chatFor(chatKey), [chatKey])
@@ -528,6 +532,32 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
     }
   }
 
+  // Clipboard paste in the composer: screenshots, Explorer copies, and
+  // browser-copied images stage as attachments; accompanying text is
+  // inserted at the cursor. Text-only pastes behave exactly as before.
+  function onComposerPaste(e: ReactClipboardEvent<HTMLTextAreaElement>) {
+    const files = collectPastedFiles(e.clipboardData)
+    if (files.length === 0) return
+    e.preventDefault()
+    const el = e.currentTarget
+    const text = e.clipboardData?.getData('text/plain') ?? ''
+    if (text) {
+      const before = draft.slice(0, el.selectionStart ?? draft.length)
+      const after = draft.slice(el.selectionEnd ?? draft.length)
+      const next = `${before}${text}${after}`
+      onInput(next)
+      const caret = before.length + text.length
+      requestAnimationFrame(() => {
+        try {
+          textRef.current?.setSelectionRange(caret, caret)
+        } catch {
+          // selection API unavailable — caret just stays put
+        }
+      })
+    }
+    void onFiles(files)
+  }
+
   function onInput(v: string) {
     setDraft(chatKey, v)
     if (!typingOn.current && v.trim()) {
@@ -556,8 +586,8 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b border-rascal-line px-4 py-2.5">
-        <span className={`h-2.5 w-2.5 rounded-full ${online ? 'bg-rascal-green' : 'bg-rascal-dim/40'}`} />
-        <span className="text-sm font-semibold">{title}</span>
+        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${online ? 'bg-rascal-green' : 'bg-rascal-dim/40'}`} />
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</span>
         <span className="hidden text-xs text-rascal-dim lg:inline">{statusText}</span>
         <div className="flex-1" />
         <VoiceHeaderButton chatKey={chatKey} isGroup={isGroup} title={title} />
@@ -735,8 +765,10 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
             GIF
           </button>
           <textarea
+            ref={textRef}
             value={draft}
             onChange={(e) => onInput(e.target.value)}
+            onPaste={onComposerPaste}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
@@ -757,7 +789,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
         </div>
         {fileErr && <div className="mt-1 px-1 text-[11px] text-red-300">{fileErr}</div>}
         <div className="mt-1 px-1 text-[10px] text-rascal-dim">
-          Enter to send - Shift+Enter for newline - drop files anywhere to attach - **bold** *italic* `code` - YouTube links embed on click
+          Enter to send - Shift+Enter for newline - drop or paste files to attach - **bold** *italic* `code` - YouTube links embed on click
         </div>
       </div>
       {gifOpen && <GifPicker chatKey={chatKey} onClose={() => setGifOpen(false)} />}

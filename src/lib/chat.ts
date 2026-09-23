@@ -15,6 +15,7 @@ import type {
   P2P,
   ReactionEntry,
 } from './p2p'
+import { FILE_BATCH_MAX, FILE_BATCH_SIZE } from './p2p'
 import { useApp, type ChatMessage, type FileMeta } from '../store/app'
 
 export interface FileContent {
@@ -39,6 +40,45 @@ const HISTORY_LIMIT = 200
 export const CHUNK_BYTES = 32 * 1024
 export const MAX_FILE_BYTES = 25 * 1024 * 1024
 const MAX_REACTIONS_OFFER = 500
+/** Chunks sealed concurrently per batch: prep runs in parallel, sends stay ordered. */
+export const CHUNK_SEAL_AHEAD = 8
+
+/** Slice + base64 + seal one chunk. Shared by DM and group streaming. */
+export async function sealChunkAt(
+  blob: Blob,
+  key: Uint8Array,
+  seq: number,
+): Promise<{ nonce: string; box: string }> {
+  const slice = blob.slice(seq * CHUNK_BYTES, (seq + 1) * CHUNK_BYTES)
+  const bytes = new Uint8Array(await slice.arrayBuffer())
+  return seal(key, bytesToB64(bytes))
+}
+
+// Progress-UI throttle: a 25 MB file is 800 chunks — the store (and every
+// progress bar) must not update 800 times. Reports at >=2 points of movement,
+// at least every 250 ms, and always on completion.
+const progSeen = new Map<string, { pct: number; ts: number }>()
+export function shouldReportProgress(fileId: string, received: number, total: number): boolean {
+  if (received >= total) {
+    progSeen.delete(fileId)
+    return true
+  }
+  const pct = Math.floor((received / Math.max(1, total)) * 100)
+  const now = Date.now()
+  const last = progSeen.get(fileId)
+  if (!last || pct - last.pct >= 2 || now - last.ts >= 250) {
+    progSeen.set(fileId, { pct, ts: now })
+    return true
+  }
+  return false
+}
+
+/** Lowest missing chunk seq (for resume-from-gap instead of from-scratch). */
+export function lowestMissing(parts: Map<number, unknown>, total: number): number {
+  let i = 0
+  while (i < total && parts.has(i)) i++
+  return Math.min(i, Math.max(0, total - 1))
+}
 
 /** Group invite carried inside a pairwise-encrypted ctrl message. */
 export interface CtrlInviteGroup {
@@ -348,7 +388,8 @@ export function bindChat(
       useApp.getState().markFileReady(fileId)
       incoming.delete(fileId)
     } catch {
-      // Corrupt assembly — wipe and re-request from scratch.
+      // Corrupt assembly — keep the good chunks, resume from the first gap.
+      const missing = lowestMissing(entry.parts, total)
       incoming.delete(fileId)
       useApp.getState().setFileProgress(fileId, {
         total,
@@ -356,7 +397,7 @@ export function bindChat(
         ready: false,
         friendId,
       })
-      void requestFile(friendId, fileId, 0).catch(() => {})
+      void requestFile(friendId, fileId, missing).catch(() => {})
     }
   }
 
@@ -457,6 +498,62 @@ export function bindChat(
         }
         if (!entry.parts.has(msg.seq)) {
           entry.parts.set(msg.seq, plain)
+          // Throttled: a 25 MB file is 800 chunks — the progress bar must
+          // not re-render 800 times. Assembly still runs per chunk (cheap).
+          if (shouldReportProgress(msg.fileId, entry.parts.size, msg.total)) {
+            const s = useApp.getState()
+            const cur = s.files[msg.fileId]
+            s.setFileProgress(msg.fileId, {
+              total: msg.total,
+              received: entry.parts.size,
+              ready: cur?.ready ?? false,
+              friendId: from,
+            })
+          }
+        }
+        await tryAssemble(from, msg.fileId)
+      })()
+    },
+    onFileBatch: (from, msg) => {
+      void (async () => {
+        const meta = findFileMessage(from, msg.fileId)
+        if (!meta?.file) return // unknown file — ignore (meta travels separately)
+        if (msg.total <= 0 || msg.total > 4096) return
+        if (
+          typeof msg.baseSeq !== 'number' ||
+          typeof msg.count !== 'number' ||
+          msg.baseSeq < 0 ||
+          msg.count <= 0 ||
+          msg.count > FILE_BATCH_MAX ||
+          msg.baseSeq + msg.count > msg.total
+        )
+          return
+        if (typeof msg.nonce !== 'string' || typeof msg.box !== 'string' || msg.box.length > 262144) return
+        const key = await keyFor(from)
+        // One open for the whole batch (4× fewer crypto ops than per-chunk).
+        const plain = await openBox(key, msg.nonce, msg.box)
+        if (!plain) return
+        let raw: Uint8Array
+        try {
+          const bin = atob(plain)
+          raw = new Uint8Array(bin.length)
+          for (let i = 0; i < bin.length; i++) raw[i] = bin.charCodeAt(i)
+        } catch {
+          return
+        }
+        let entry = incoming.get(msg.fileId)
+        if (!entry) {
+          entry = { friendId: from, parts: new Map() }
+          incoming.set(msg.fileId, entry)
+        }
+        for (let i = 0; i < msg.count; i++) {
+          const seq = msg.baseSeq + i
+          if (entry.parts.has(seq)) continue
+          const piece = raw.subarray(i * CHUNK_BYTES, (i + 1) * CHUNK_BYTES)
+          if (piece.length === 0) continue
+          entry.parts.set(seq, bytesToB64(piece))
+        }
+        if (shouldReportProgress(msg.fileId, entry.parts.size, msg.total)) {
           const s = useApp.getState()
           const cur = s.files[msg.fileId]
           s.setFileProgress(msg.fileId, {
@@ -545,23 +642,57 @@ export function bindChat(
     if (!inst) return
     const key = await keyFor(friendId)
     const total = Math.max(1, Math.ceil(blob.size / CHUNK_BYTES))
-    for (let seq = fromSeq; seq < total; seq++) {
+    // Batched fast path when the peer announced v2: one sealed box per
+    // FILE_BATCH_SIZE chunks (4× fewer crypto ops + messages). Legacy
+    // per-chunk stream otherwise (mixed-version safe).
+    const batched = inst.peerSupportsBatch(friendId)
+    if (batched) {
+      for (let s = fromSeq; s < total; s += FILE_BATCH_SIZE) {
+        if (inst.peerCount(friendId) === 0) break
+        const count = Math.min(FILE_BATCH_SIZE, total - s)
+        const slice = blob.slice(s * CHUNK_BYTES, (s + count) * CHUNK_BYTES)
+        const bytes = new Uint8Array(await slice.arrayBuffer())
+        const { nonce, box } = await seal(key, bytesToB64(bytes))
+        await inst
+          .sendAction(friendId, 'fbatch', {
+            v: 1,
+            to: friendId,
+            from: me,
+            fileId,
+            total,
+            baseSeq: s,
+            count,
+            nonce,
+            box,
+          })
+          .catch(() => {})
+      }
+      return
+    }
+    for (let base = fromSeq; base < total; base += CHUNK_SEAL_AHEAD) {
       if (inst.peerCount(friendId) === 0) break
-      const slice = blob.slice(seq * CHUNK_BYTES, (seq + 1) * CHUNK_BYTES)
-      const bytes = new Uint8Array(await slice.arrayBuffer())
-      const { nonce, box } = await seal(key, bytesToB64(bytes))
-      await inst
-        .sendAction(friendId, 'fchunk', {
-          v: 1,
-          to: friendId,
-          from: me,
-          fileId,
-          seq,
-          total,
-          nonce,
-          box,
-        })
-        .catch(() => {})
+      // Seal the batch concurrently; sends stay in order on the wire.
+      const end = Math.min(total, base + CHUNK_SEAL_AHEAD)
+      const sealed = await Promise.all(
+        Array.from({ length: end - base }, (_, i) => sealChunkAt(blob, key, base + i)),
+      )
+      for (let i = 0; i < sealed.length; i++) {
+        if (inst.peerCount(friendId) === 0) return
+        await inst
+          .sendAction(friendId, 'fchunk', {
+            v: 1,
+            to: friendId,
+            from: me,
+            fileId,
+            seq: base + i,
+            total,
+            nonce: sealed[i].nonce,
+            box: sealed[i].box,
+          })
+          .catch(() => {})
+      }
+      // Yield between batches so the receive path gets event-loop time.
+      if (end < total) await new Promise((r) => setTimeout(r, 0))
     }
   }
 

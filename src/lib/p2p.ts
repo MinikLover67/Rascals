@@ -16,6 +16,13 @@ import type { Identity } from './identity'
 import { roomOpts } from './relays'
 import { dmRoomFor, groupRoomFor, lobbyRoomFor, serverRoomFor } from './rooms'
 
+/** File transfer protocol version we speak (advertised in hello `fv`). */
+export const FILE_PROTO_VERSION = 2
+/** Chunks per fbatch action: 4×32 KB stays under the ~256 KB SCTP ceiling. */
+export const FILE_BATCH_SIZE = 4
+/** Hard cap on batch length (memory bound against malicious peers). */
+export const FILE_BATCH_MAX = 16
+
 export interface HelloPayload {
   v: number
   /** Intended recipient — lobby rooms can contain other requesters, so ignore misaddressed mail. */
@@ -135,6 +142,24 @@ export interface FileChunkMsg {
   [key: string]: string | number
 }
 
+/** Batched chunks (protocol v2): one sealed box per action covering up to
+ * BATCH_CHUNKS plaintext chunks, so crypto cost drops ~4×. `box` seals
+ * base64(raw bytes of chunks [baseSeq, baseSeq+count)); chunk boundaries
+ * are pure functions of (file size, seq), so no per-piece metadata rides.
+ * Receivers must accept any count/offset — resume batches are rarely full. */
+export interface FileBatchMsg {
+  v: number
+  to: string
+  from: string
+  fileId: string
+  total: number
+  baseSeq: number
+  count: number
+  nonce: string
+  box: string
+  [key: string]: string | number
+}
+
 /** Ask the peer to (re)stream chunks for a file. fromSeq allows resume. */
 export interface FileGetMsg {
   v: number
@@ -154,6 +179,7 @@ export type MsgActionName =
   | 'react'
   | 'pin'
   | 'fchunk'
+  | 'fbatch'
   | 'fget'
   | 'ctrl'
   | 'call'
@@ -166,6 +192,7 @@ export type MsgWire =
   | ReactMsg
   | PinMsg
   | FileChunkMsg
+  | FileBatchMsg
   | FileGetMsg
   | CtrlMsg
   | CallMsg
@@ -413,6 +440,7 @@ export interface MsgHandlers {
   onReact: (from: string, msg: ReactMsg) => void
   onPin: (from: string, msg: PinMsg) => void
   onFileChunk: (from: string, msg: FileChunkMsg) => void
+  onFileBatch: (from: string, msg: FileBatchMsg) => void
   onFileGet: (from: string, msg: FileGetMsg) => void
   onCtrl: (from: string, msg: CtrlMsg) => void
   onCall: (from: string, msg: CallMsg) => void
@@ -443,6 +471,8 @@ export class P2P {
   private dmRooms = new Map<string, DmEntry>()
   private groupRooms = new Map<string, DmEntry>()
   private serverRooms = new Map<string, DmEntry>()
+  /** Claimed file-protocol version per peer (hello `fv`, default 1). */
+  private peerFileVersion = new Map<string, number>()
   private smsg: ServerHandlers | null = null
 
   constructor(id: Identity, cb: P2PCallbacks, gcb?: P2PGroupCallbacks) {
@@ -475,8 +505,16 @@ export class P2P {
       userId: this.id.userId,
       name: this.id.name,
       ts,
+      // File protocol version (unsigned capability flag: a tampered fv only
+      // downgrades the sender to slower legacy chunks, never breaks receipt).
+      fv: FILE_PROTO_VERSION,
       sig: await signHello(this.id.secretKey, this.id.userId, this.id.name, ts),
     }
+  }
+
+  /** True when the peer announced batched-chunk support (else legacy fchunk). */
+  peerSupportsBatch(friendId: string): boolean {
+    return (this.peerFileVersion.get(friendId) ?? 1) >= 2
   }
 
   /** Join my lobby and listen for incoming friend requests. */
@@ -562,7 +600,10 @@ export class P2P {
       if (data.userId !== friendId) return
       if (data.userId === me) return
       const ok = await verifyHello(data.userId, data.name, data.ts, data.sig)
-      if (ok) this.cb.onHello(data.userId, data.name)
+      if (ok) {
+        this.peerFileVersion.set(data.userId, typeof data.fv === 'number' ? data.fv : 1)
+        this.cb.onHello(data.userId, data.name)
+      }
     }
 
     wire('msg').onMessage = (data: MsgEnvelope) => {
@@ -606,6 +647,12 @@ export class P2P {
         return
       if (typeof data.fileId === 'string' && typeof data.seq === 'number')
         this.msg?.onFileChunk(data.from, data)
+    }
+    wire('fbatch').onMessage = (data: FileBatchMsg) => {
+      if (!data || data.v !== 1 || data.from !== friendId || data.to !== me)
+        return
+      if (typeof data.fileId === 'string' && typeof data.baseSeq === 'number')
+        this.msg?.onFileBatch(data.from, data)
     }
     wire('fget').onMessage = (data: FileGetMsg) => {
       if (!data || data.v !== 1 || data.from !== friendId || data.to !== me)

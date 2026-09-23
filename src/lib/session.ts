@@ -7,6 +7,7 @@ import { bindServerChat, type ServerApi } from './chat-server'
 import { alertFriendRequest } from './alerts'
 import { bindVoice, type VoiceApi } from './voice'
 import type { Identity } from './identity'
+import { shapeDisplayName, shortUid } from './format'
 import { P2P } from './p2p'
 import { playSound } from './sound'
 import { useApp } from '../store/app'
@@ -123,16 +124,20 @@ export async function startSession(identity: Identity): Promise<void> {
     identity,
     {
       onFriendRequest: (userId, displayName) => {
+        // Peer-controlled: shape before it touches state or notifications.
+        const name = shapeDisplayName(displayName) || shortUid(userId)
         useApp.getState().upsertRequest({
           userId,
-          displayName,
+          displayName: name,
           direction: 'in',
           ts: Date.now(),
         })
-        alertFriendRequest(displayName)
+        alertFriendRequest(name)
       },
       onHello: (userId, displayName) => {
         const s = useApp.getState()
+        // Peer-controlled: shape before storing (hello re-sends on every connect).
+        const name = shapeDisplayName(displayName) || shortUid(userId)
         const known = s.friends.some((f) => f.userId === userId)
         if (!known) {
           // Stranger said hello in our pairwise room: only accept if WE
@@ -142,11 +147,11 @@ export async function startSession(identity: Identity): Promise<void> {
           )
           if (outgoing) {
             s.removeRequest(userId)
-            s.addFriend({ userId, displayName, online: true, addedAt: Date.now() })
+            s.addFriend({ userId, displayName: name, online: true, addedAt: Date.now() })
           }
           return
         }
-        s.renameFriend(userId, displayName)
+        s.renameFriend(userId, name)
         s.setOnline(userId, true)
       },
       onPeerOnline: (friendId) => {
@@ -204,7 +209,7 @@ export async function acceptRequest(userId: string, displayName: string): Promis
   const s = useApp.getState()
   s.removeRequest(userId)
   s.dropRecent(userId)
-  s.addFriend({ userId, displayName, online: false, addedAt: Date.now() })
+  s.addFriend({ userId, displayName: shapeDisplayName(displayName) || shortUid(userId), online: false, addedAt: Date.now() })
   await getP2P()?.ensureDmRoom(userId)
   await getChat()?.peerBecameAvailable(userId).catch(() => {})
 }
@@ -213,7 +218,7 @@ export async function acceptRequest(userId: string, displayName: string): Promis
 export async function requestFriend(userId: string, displayName: string): Promise<void> {
   const s = useApp.getState()
   s.dropRecent(userId)
-  s.upsertRequest({ userId, displayName, direction: 'out', ts: Date.now() })
+  s.upsertRequest({ userId, displayName: shapeDisplayName(displayName) || shortUid(userId), direction: 'out', ts: Date.now() })
   await getP2P()?.ensureDmRoom(userId)
   await getP2P()?.sendFriendRequest(userId)
 }
