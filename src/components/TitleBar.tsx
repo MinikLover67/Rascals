@@ -46,6 +46,12 @@ export default function TitleBar() {
         <span className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-rascal-dim">
           P2P · Phase 0
         </span>
+        <span
+          title="Rascals is in beta: still testing, bugs to fix. Report issues on GitHub."
+          className="rounded bg-rascal-amber/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-rascal-amber"
+        >
+          BETA
+        </span>
       </div>
       <div className="flex">
         <WinButton label="min" onClick={() => withWindow((w) => w.minimize())} />

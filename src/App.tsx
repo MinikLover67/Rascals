@@ -60,6 +60,9 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
           Private peer-to-peer chat. No accounts, no message server — your
           identity is a keypair stored only on this PC.
         </p>
+        <p className="mt-2 rounded-lg bg-rascal-amber/10 px-3 py-1.5 text-xs text-rascal-amber">
+          Beta: still testing, bugs to fix. Report issues on GitHub.
+        </p>
         <label className="mt-6 block text-xs font-semibold uppercase tracking-wider text-rascal-dim">
           Display name
         </label>

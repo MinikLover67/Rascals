@@ -1,4 +1,4 @@
-# Rascals
+# Rascals — Beta (still testing, bugs to fix)
 
 Private peer-to-peer chat for desktop. No accounts, no message server, no
 database — friends connect directly over encrypted WebRTC, with decentralized
