@@ -16,7 +16,7 @@ import { markReadNow, useApp, EMPTY_MESSAGES, EMPTY_PINS, type ChatMessage } fro
 import { shortUid, fmtBytes } from '../lib/format'
 import { MAX_FILE_BYTES } from '../lib/chat'
 import { onDropFiles } from '../lib/dropfiles'
-import { collectPastedFiles } from '../lib/clipboard'
+import { collectPastedFiles, dedupeImageDupes } from '../lib/clipboard'
 import { onMessageLinkClick } from '../lib/links'
 
 function fmtTime(ts: number): string {
@@ -535,6 +535,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
   // Clipboard paste in the composer: screenshots, Explorer copies, and
   // browser-copied images stage as attachments; accompanying text is
   // inserted at the cursor. Text-only pastes behave exactly as before.
+  // Pixel-dedupe runs async (one paste can carry the same shot twice).
   function onComposerPaste(e: ReactClipboardEvent<HTMLTextAreaElement>) {
     const files = collectPastedFiles(e.clipboardData)
     if (files.length === 0) return
@@ -555,7 +556,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
         }
       })
     }
-    void onFiles(files)
+    void dedupeImageDupes(files).then((unique) => onFiles(unique.length > 0 ? unique : files))
   }
 
   function onInput(v: string) {
