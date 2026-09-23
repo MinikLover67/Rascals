@@ -5,15 +5,12 @@ import { schnorr } from '@noble/secp256k1'
 
 const CANDIDATES = [
   'wss://nos.lol',
-  'wss://relay.mostr.pub',
   'wss://relay.primal.net',
   'wss://relay.snort.social',
   'wss://yabu.me',
-  'wss://chorus.pjv.me',
   'wss://relay.artio.inf.unibe.ch',
   'wss://nostr.data.haus',
   'wss://purplerelay.com',
-  'wss://relay.mostro.network',
   'wss://relay.sigit.io',
   'wss://relay02.lnfi.network',
   'wss://schnorr.me',
