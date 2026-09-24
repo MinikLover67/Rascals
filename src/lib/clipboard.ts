@@ -1,13 +1,5 @@
 // Clipboard paste collection: screenshots (Snipping Tool), Explorer file
-// copies, and browser-copied images. Pure function over the ClipboardEvent
-// payload so it stays unit-testable without touching the real clipboard.
-
-/** Blank-but-typed files (screenshots) get a usable name. */
-export function pastedFileName(file: File): string {
-  if (file.name) return file.name
-  const ext = file.type.startsWith('image/') ? file.type.slice(6).split(/[+;]/)[0] || 'png' : 'bin'
-  return `pasted-${Date.now()}.${ext}`
-}
+// copies, and browser-copied images.
 
 /** Pull every pasted file out of a clipboard event payload. Never throws.
  *

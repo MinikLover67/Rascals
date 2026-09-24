@@ -7,13 +7,10 @@
 // relay.mostr.pub (dead), relay.mostro.network (read-only, useless for
 // presence writes), nostr.wine (account wall), noswhere (muted),
 // nostr.band (unreachable), damus.io (flaky 503s).
-// TURN (when the user configures one in Settings) applies to every room so
-// strict NATs fall back to relayed media instead of failing silently.
 
-import { useApp } from '../store/app'
 import { APP_ID } from './rooms'
 
-export const SIGNAL_RELAYS = [
+const SIGNAL_RELAYS = [
   'wss://nos.lol',
   'wss://relay.primal.net',
   'wss://relay.snort.social',
@@ -40,8 +37,14 @@ export interface RoomOpts {
   rtcConfig?: { iceTransportPolicy?: RTCIceTransportPolicy }
 }
 
-export function roomOpts(): RoomOpts {
-  const t = useApp.getState().settings
+/** Room options from explicit settings (param, not store import — keeps the
+ * module graph acyclic: store -> p2p -> relays, never back). */
+export function roomOpts(t: {
+  turnUrl: string
+  turnUser: string
+  turnPass: string
+  hideIp: boolean
+}): RoomOpts {
   const opts: RoomOpts = {
     appId: APP_ID,
     relayConfig: { urls: SIGNAL_RELAYS, redundancy: SIGNAL_RELAYS.length },

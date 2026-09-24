@@ -154,10 +154,6 @@ export function groupChatKey(groupId: string): string {
   return `g:${groupId}`
 }
 
-export function groupIdFromChatKey(chatKey: string): string | null {
-  return chatKey.startsWith('g:') ? chatKey.slice(2) : null
-}
-
 // Stable empty refs for selectors. NEVER return a fresh [] or {} from a
 // zustand selector: useSyncExternalStore sees a new reference every snapshot
 // and React spirals into "Maximum update depth exceeded" (frozen app).

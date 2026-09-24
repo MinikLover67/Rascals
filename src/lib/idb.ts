@@ -50,14 +50,6 @@ export async function getBlob(fileId: string): Promise<Blob | null> {
   }
 }
 
-export async function deleteBlob(fileId: string): Promise<void> {
-  try {
-    await tx('readwrite', (s) => s.delete(fileId))
-  } catch {
-    // ignore
-  }
-}
-
 async function evictIfNeeded(): Promise<void> {
   const db = await openDb()
   try {
@@ -113,14 +105,6 @@ export async function blobUrl(fileId: string): Promise<string | null> {
   const url = URL.createObjectURL(blob)
   urlCache.set(fileId, url)
   return url
-}
-
-export function dropUrl(fileId: string): void {
-  const url = urlCache.get(fileId)
-  if (url) {
-    URL.revokeObjectURL(url)
-    urlCache.delete(fileId)
-  }
 }
 
 // Small key/value sidecar (custom sound packs, etc.).

@@ -238,7 +238,7 @@ export function bindVoice(deps: VoiceDeps) {
   async function joinRoomCommon(id: string, kind: 'call' | 'channel'): Promise<string | null> {
     try {
       leaveRoomOnly()
-      const r = joinRoom(roomOpts(), id)
+      const r = joinRoom(roomOpts(useApp.getState().settings), id)
       room = r
       roomKind = kind
       const hello = r.makeAction<VHello>('vhello')

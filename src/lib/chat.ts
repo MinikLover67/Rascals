@@ -111,7 +111,7 @@ export interface CtrlServerInvitePayload {
 
 export type AnyInvitePayload = CtrlInvitePayload | CtrlServerInvitePayload
 
-export function shapeFile(raw: unknown): FileContent | null {
+function shapeFile(raw: unknown): FileContent | null {
   if (typeof raw !== 'object' || raw === null) return null
   const f = raw as Record<string, unknown>
   if (typeof f.id !== 'string' || typeof f.name !== 'string') return null
@@ -172,7 +172,7 @@ export async function assembleBlob(ordered: string[], mime: string): Promise<Blo
   }
 }
 
-export function bytesToB64(bytes: Uint8Array): string {
+function bytesToB64(bytes: Uint8Array): string {
   let bin = ''
   for (let i = 0; i < bytes.length; i += 8192) {
     bin += String.fromCharCode(...bytes.subarray(i, i + 8192))

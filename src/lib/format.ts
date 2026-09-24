@@ -1,6 +1,6 @@
 // Shared display formatters (kept here so components only export components).
 
-export const MAX_NAME_CHARS = 64
+const MAX_NAME_CHARS = 64
 
 // Shape any inbound display name (peer hello, invite, request): trim,
 // collapse whitespace/newlines to single spaces, cap length. Peers can send

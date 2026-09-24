@@ -15,9 +15,15 @@ import { signHello, verifyHello } from './crypto'
 import type { Identity } from './identity'
 import { roomOpts } from './relays'
 import { dmRoomFor, groupRoomFor, lobbyRoomFor, serverRoomFor } from './rooms'
+import { useApp } from '../store/app'
+
+/** Current room options (settings snapshot per join — TURN edits apply to new rooms). */
+function opts() {
+  return roomOpts(useApp.getState().settings)
+}
 
 /** File transfer protocol version we speak (advertised in hello `fv`). */
-export const FILE_PROTO_VERSION = 2
+const FILE_PROTO_VERSION = 2
 /** Chunks per fbatch action: 4×32 KB stays under the ~256 KB SCTP ceiling. */
 export const FILE_BATCH_SIZE = 4
 /** Hard cap on batch length (memory bound against malicious peers). */
@@ -549,7 +555,7 @@ export class P2P {
   async start(): Promise<void> {
     if (this.lobby) return
     const me = this.id.userId
-    const lobby = joinRoom(roomOpts(), lobbyRoomFor(me))
+    const lobby = joinRoom(opts(), lobbyRoomFor(me))
     this.lobby = lobby
     const freq = lobby.makeAction<HelloPayload>('freq')
     freq.onMessage = async (data) => {
@@ -581,7 +587,7 @@ export class P2P {
       await existing(payload)
       return
     }
-    const room = joinRoom(roomOpts(), roomId)
+    const room = joinRoom(opts(), roomId)
     const freq = room.makeAction<HelloPayload>('freq')
     const send = (data: HelloPayload, target?: string): Promise<void> =>
       target ? freq.send(data, { target }) : freq.send(data)
@@ -605,7 +611,7 @@ export class P2P {
   async ensureDmRoom(friendId: string): Promise<void> {
     if (this.dmRooms.has(friendId)) return
     const me = this.id.userId
-    const room = joinRoom(roomOpts(), await dmRoomFor(me, friendId))
+    const room = joinRoom(opts(), await dmRoomFor(me, friendId))
     const entry: DmEntry = {
       room,
       friendId,
@@ -735,7 +741,7 @@ export class P2P {
   /** Join (or reuse) a group's shared room. Handlers come from setGroupHandlers. */
   async joinGroupRoom(groupId: string): Promise<void> {
     if (this.groupRooms.has(groupId)) return
-    const room = joinRoom(roomOpts(), groupRoomFor(groupId))
+    const room = joinRoom(opts(), groupRoomFor(groupId))
     const entry: DmEntry = { room, friendId: groupId, peers: new Set(), senders: new Map() }
     this.groupRooms.set(groupId, entry)
     const g = this.gmsg
@@ -832,7 +838,7 @@ export class P2P {
 
   async joinServerRoom(serverId: string): Promise<void> {
     if (this.serverRooms.has(serverId)) return
-    const room = joinRoom(roomOpts(), serverRoomFor(serverId))
+    const room = joinRoom(opts(), serverRoomFor(serverId))
     const entry: DmEntry = { room, friendId: serverId, peers: new Set(), senders: new Map() }
     this.serverRooms.set(serverId, entry)
     const h = this.smsg

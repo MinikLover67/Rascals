@@ -5,7 +5,7 @@
 import type { MouseEvent as ReactMouseEvent } from 'react'
 
 /** True for safe-to-open web URLs. Everything else is ignored. */
-export function isOpenableUrl(href: string): boolean {
+function isOpenableUrl(href: string): boolean {
   try {
     const u = new URL(href)
     return u.protocol === 'http:' || u.protocol === 'https:'
@@ -14,7 +14,7 @@ export function isOpenableUrl(href: string): boolean {
   }
 }
 
-export async function openExternal(href: string): Promise<void> {
+async function openExternal(href: string): Promise<void> {
   if (!isOpenableUrl(href)) return
   try {
     const { openUrl } = await import('@tauri-apps/plugin-opener')

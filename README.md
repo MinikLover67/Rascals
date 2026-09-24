@@ -28,6 +28,7 @@ npm install
 npm run dev        # browser preview (separate storage per browser)
 npm run tauri dev  # desktop app (needs Rust + platform webview deps)
 npm run build      # frontend build
+npm run test       # vitest unit tests (pure protocol/display logic)
 npm run lint       # oxlint, must be clean
 ```
 

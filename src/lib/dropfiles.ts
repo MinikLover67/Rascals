@@ -2,7 +2,7 @@
 // forwards dropped files here; the open ChatPanel picks them up and sends
 // them to its own chat. Decoupled so drops work from anywhere on screen.
 
-export const DROP_FILES_EVENT = 'rascals-drop-files'
+const DROP_FILES_EVENT = 'rascals-drop-files'
 
 export function emitDropFiles(files: File[]): void {
   try {
