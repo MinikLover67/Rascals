@@ -298,6 +298,34 @@ function refreshHellos(): void {
   }
 }
 
+/** One-shot connection reset: rejoin lobby + every DM room, rebroadcast.
+ * For when invites/presence stall and waiting on the timers is too slow.
+ * Returns a human summary for the button. Never throws. */
+export async function resetConnection(): Promise<string> {
+  const inst = getP2P()
+  if (!inst) return 'Not connected yet — try again in a moment.'
+  let rooms = 0
+  try {
+    await inst.rejoinLobby().catch(() => {})
+    const st = useApp.getState()
+    for (const f of st.friends) {
+      try {
+        await inst.rejoinDmRoom(f.userId)
+        rooms++
+      } catch {
+        // keep healing the rest
+      }
+    }
+    await inst.broadcastHellos().catch(() => {})
+    const now = Date.now()
+    lastLobbyRejoin = now
+    lastWedgeHeal = now
+  } catch {
+    return 'Reconnect hit a snag — try again.'
+  }
+  return `Reconnected — lobby plus ${rooms} chat room${rooms === 1 ? '' : 's'} refreshed. Give it half a minute.`
+}
+
 /** Accept an incoming request: befriend + join pairwise room (hellos do the rest). */
 export async function acceptRequest(userId: string, displayName: string): Promise<void> {
   const s = useApp.getState()

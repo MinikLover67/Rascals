@@ -361,6 +361,8 @@ type Diag = ReturnType<typeof import('../lib/session').diagnostics>
 function ConnectionSection() {
   const [diag, setDiag] = useState<Diag>(null)
   const [copied, setCopied] = useState(false)
+  const [reconnectMsg, setReconnectMsg] = useState<string | null>(null)
+  const [reconnecting, setReconnecting] = useState(false)
 
   function refresh() {
     void import('../lib/session').then(({ diagnostics }) => {
@@ -387,6 +389,21 @@ function ConnectionSection() {
       setTimeout(() => setCopied(false), 1500)
     } catch {
       // clipboard unavailable
+    }
+  }
+
+  async function reconnect() {
+    if (reconnecting) return
+    setReconnecting(true)
+    setReconnectMsg(null)
+    try {
+      const { resetConnection } = await import('../lib/session')
+      setReconnectMsg(await resetConnection())
+      refresh()
+    } catch {
+      setReconnectMsg('Reconnect hit a snag — try again.')
+    } finally {
+      setReconnecting(false)
     }
   }
 
@@ -430,6 +447,14 @@ function ConnectionSection() {
           Refresh
         </button>
         <button
+          onClick={() => void reconnect()}
+          disabled={reconnecting}
+          title="Rejoin lobby + all chat rooms and re-announce (fixes stuck invites/presence without restarting)"
+          className="flex-1 rounded-lg bg-rascal-accent/20 px-3 py-1.5 text-sm font-semibold text-rascal-accent hover:bg-rascal-accent/30 disabled:opacity-40"
+        >
+          {reconnecting ? 'Reconnecting…' : 'Reconnect'}
+        </button>
+        <button
           onClick={() => void copy()}
           disabled={!diag}
           className="flex-1 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold hover:bg-white/15 disabled:opacity-40"
@@ -437,6 +462,7 @@ function ConnectionSection() {
           {copied ? 'Copied' : 'Copy diagnostics'}
         </button>
       </div>
+      {reconnectMsg && <p className="mt-1 text-[11px] text-rascal-dim">{reconnectMsg}</p>}
     </div>
   )
 }
