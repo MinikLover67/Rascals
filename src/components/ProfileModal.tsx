@@ -62,8 +62,16 @@ export default function ProfileModal({
     if (self || fetching) return
     setFetching(true)
     try {
+      const before = (await loadPeerProfile(userId))?.at ?? 0
       const { requestPeerProfile } = await import('../lib/session')
       await requestPeerProfile(userId)
+      // The answer arrives async — poll the cache until it lands.
+      const t0 = Date.now()
+      while (Date.now() - t0 < 8000) {
+        await new Promise((r) => setTimeout(r, 500))
+        const cur = await loadPeerProfile(userId)
+        if (cur && cur.at > before) break
+      }
       await loadPeer()
     } catch {
       // peer offline — cache stays
@@ -120,6 +128,11 @@ export default function ProfileModal({
           <div className="mt-0.5 truncate font-mono text-[11px] text-rascal-dim" title={userId}>
             {shortUid(userId)}
           </div>
+          {self && (
+            <p className="mt-1 text-[10px] text-rascal-dim">
+              Profile looks are alpha — still working on them.
+            </p>
+          )}
           <div className="mt-3 flex items-center gap-2">
             <span
               className="h-5 w-5 rounded-md border border-white/20"

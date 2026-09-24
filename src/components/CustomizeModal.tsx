@@ -93,7 +93,15 @@ export default function CustomizeModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold">Customize profile</h2>
+          <h2 className="flex items-center gap-2 text-base font-bold">
+            Customize profile
+            <span
+              title="Profile customization is alpha: still working on it, looks may shift between updates."
+              className="rounded bg-rascal-amber/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-rascal-amber"
+            >
+              ALPHA
+            </span>
+          </h2>
           <button
             onClick={onClose}
             title="Close"
