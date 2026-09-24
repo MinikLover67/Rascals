@@ -181,7 +181,7 @@ export default function CustomizeModal({ onClose }: { onClose: () => void }) {
           <div
             className="flex items-center gap-3 px-3 pb-3 text-white"
             style={{
-              background: `linear-gradient(135deg, ${draft.themePrimary}, ${draft.themeAccent})`,
+              background: `linear-gradient(90deg, ${draft.themePrimary}, ${draft.themeAccent})`,
             }}
           >
             <span className="-mt-5 rounded-full ring-4 ring-white/40">

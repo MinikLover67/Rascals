@@ -113,7 +113,7 @@ export default function ProfileModal({
         <div
           className="px-5 pb-5 text-white"
           style={{
-            background: `linear-gradient(135deg, ${primary}, ${accent})`,
+            background: `linear-gradient(180deg, ${primary}, ${accent})`,
           }}
         >
           <div className="-mt-8 mb-2 flex items-end justify-between">
