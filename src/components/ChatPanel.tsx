@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent as ReactClipboardEvent } from 'react'
 import { Check, Copy, Paperclip, Pencil, Phone, Pin, PinOff, Reply, Search, SendHorizontal, Settings, SmilePlus, Trash2, Users, X } from 'lucide-react'
 import AttachmentCard from './AttachmentCard'
+import { PeerAvatar } from './Avatar'
 import GifPicker from './GifPicker'
+import ProfileModal from './ProfileModal'
 import GroupInfoModal from './GroupInfoModal'
 import SettingsModal from './SettingsModal'
 import VoiceButton from './VoiceButton'
@@ -451,6 +453,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
   const [fileErr, setFileErr] = useState<string | null>(null)
+  const [profileUid, setProfileUid] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const textRef = useRef<HTMLTextAreaElement>(null)
@@ -699,7 +702,18 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
     <div className="flex min-w-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b border-rascal-line px-4 py-2.5">
         <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${online ? 'bg-rascal-green' : 'bg-rascal-dim/40'}`} />
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</span>
+        {!isGroup && friend ? (
+          <button
+            onClick={() => setProfileUid(friend.userId)}
+            title="View profile"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-md p-0.5 text-left hover:bg-white/5"
+          >
+            <PeerAvatar userId={friend.userId} name={friend.displayName} size={24} />
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</span>
+          </button>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</span>
+        )}
         <span className="hidden text-xs text-rascal-dim lg:inline">{statusText}</span>
         <div className="flex-1" />
         <VoiceHeaderButton chatKey={chatKey} isGroup={isGroup} title={title} />
@@ -928,6 +942,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
       </div>
       {gifOpen && <GifPicker chatKey={chatKey} onClose={() => setGifOpen(false)} />}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {profileUid && <ProfileModal userId={profileUid} onClose={() => setProfileUid(null)} />}
       {infoOpen && isGroup && (
         <ManagedGroupInfo groupId={chatKey.slice(2)} myId={myId} onClose={() => setInfoOpen(false)} />
       )}

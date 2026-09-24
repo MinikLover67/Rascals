@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Settings, Star, UserPlus, X } from 'lucide-react'
 import { decodeInvite, encodeInvite } from '../lib/invite'
 import { acceptRequest, getP2P, requestFriend, unfriend } from '../lib/session'
 import { useApp, unreadCount } from '../store/app'
+import Avatar, { PeerAvatar, PeerName } from './Avatar'
+import CustomizeModal from './CustomizeModal'
+import ProfileModal from './ProfileModal'
 import SettingsModal from './SettingsModal'
+import StyledName from './StyledName'
+import { useStoredImage } from './useStoredImage'
 
 function shortId(userId: string): string {
   return userId.length > 16 ? `${userId.slice(0, 12)}…` : userId
@@ -30,6 +35,10 @@ export default function FriendsPanel() {
   const [error, setError] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [knock, setKnock] = useState<Record<string, 'busy' | 'done'>>({})
+  const [profileUid, setProfileUid] = useState<string | null>(null)
+  const [customizing, setCustomizing] = useState(false)
+  const ownProfile = useApp((s) => s.profile)
+  const ownAvatarUrl = useStoredImage('avatar', ownProfile.avatar?.id ?? null)
 
   if (!identity) return null
   const me = identity
@@ -115,11 +124,19 @@ export default function FriendsPanel() {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-rascal-panel">
       <div className="border-b border-rascal-line p-3">
-        <div className="text-xs font-bold uppercase tracking-wider text-rascal-dim">
-          {me.name}        </div>
-        <div className="truncate font-mono text-[11px] text-rascal-dim" title={me.userId}>
-          {shortId(me.userId)}
-        </div>
+        <button onClick={() => setProfileUid(me.userId)} title="View my profile" className="flex w-full items-center gap-2.5 rounded-lg p-1 text-left hover:bg-white/5">
+          <Avatar url={ownAvatarUrl} name={me.name} size={36} />
+          <span className="min-w-0 flex-1">
+            <StyledName
+              name={me.name}
+              styleId={ownProfile.nameStyle}
+              className="block truncate text-sm font-bold"
+            />
+            <span className="block truncate font-mono text-[11px] text-rascal-dim" title={me.userId}>
+              {shortId(me.userId)}
+            </span>
+          </span>
+        </button>
         <button
           onClick={() => setShowCode((v) => !v)}
           data-testid="show-code"
@@ -253,13 +270,23 @@ export default function FriendsPanel() {
                 selectedFriend === f.userId ? 'bg-white/5' : ''
               }`}
             >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setProfileUid(f.userId)
+                }}
+                title="View profile"
+                aria-label={`View ${f.displayName} profile`}
+                className="shrink-0 rounded-full hover:ring-2 hover:ring-rascal-accent"
+              >
+                <PeerAvatar userId={f.userId} name={f.displayName} size={32} />
+              </button>
               <span
                 className={`h-2.5 w-2.5 shrink-0 rounded-full ${f.online ? 'bg-rascal-green' : 'bg-rascal-dim/40'}`}
                 title={f.online ? 'online' : 'offline'}
               />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{f.displayName}</div>
-                <div className="truncate font-mono text-[10px] text-rascal-dim">
+                <PeerName userId={f.userId} name={f.displayName} className="block truncate text-sm font-medium" />                <div className="truncate font-mono text-[10px] text-rascal-dim">
                   {f.online ? 'online' : shortId(f.userId)}
                 </div>
               </div>
@@ -350,6 +377,14 @@ export default function FriendsPanel() {
         </button>
       </div>
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {profileUid && (
+        <ProfileModal
+          userId={profileUid}
+          onClose={() => setProfileUid(null)}
+          onCustomize={profileUid === me.userId ? () => setCustomizing(true) : undefined}
+        />
+      )}
+      {customizing && <CustomizeModal onClose={() => setCustomizing(false)} />}
     </div>
   )
 }
@@ -359,8 +394,13 @@ export default function FriendsPanel() {
 // Weak-connection banner: when almost no signaling relays are reachable
 // (captive portal, firewall, VPN, DNS trouble), SAY SO where invites live —
 // otherwise "request sent, nothing arrives" looks like an app bug.
+// Second case: relays are green but zero peers anywhere for a full minute
+// while you have friends/requests — devices can't reach each other directly
+// (same-WiFi isolation, firewall). That one needs network changes or TURN.
 function ConnHealth() {
   const [weak, setWeak] = useState(false)
+  const [isolated, setIsolated] = useState(false)
+  const peerCount = useRef(0)
   useEffect(() => {
     let live = true
     const poll = () => {
@@ -374,6 +414,12 @@ function ConnHealth() {
           }
           const up = d.relays.filter((r) => r.state === 'connected').length
           setWeak(up <= 1)
+          const peers = (d.lobbyPeers ?? 0) + (d.dmPeers ?? 0) + (d.groupPeers ?? 0)
+          const hasPeople =
+            useApp.getState().friends.length > 0 || useApp.getState().requests.length > 0
+          if (up >= 2 && peers === 0 && hasPeople) peerCount.current += 1
+          else peerCount.current = 0
+          setIsolated(peerCount.current >= 4)
         } catch {
           setWeak(false)
         }
@@ -385,16 +431,30 @@ function ConnHealth() {
       live = false
       clearInterval(t)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  if (!weak) return null
+  if (!weak && !isolated) return null
   return (
     <div className="mb-2 rounded-lg border border-rascal-amber/50 bg-rascal-amber/10 p-2 text-[11px] leading-relaxed">
-      <span className="font-bold text-rascal-amber">Weak connection.</span>{' '}
-      <span className="text-rascal-dim">
-        Almost no signaling relays reachable — invites and messages may not
-        arrive. Check internet, VPN, firewall, or try another network. Details
-        in Settings → Connection.
-      </span>
+      {weak ? (
+        <>
+          <span className="font-bold text-rascal-amber">Weak connection.</span>{' '}
+          <span className="text-rascal-dim">
+            Almost no signaling relays reachable — invites and messages may not
+            arrive. Check internet, VPN, firewall, or try another network. Details
+            in Settings → Connection.
+          </span>
+        </>
+      ) : (
+        <>
+          <span className="font-bold text-rascal-amber">No route to peers.</span>{' '}
+          <span className="text-rascal-dim">
+            Relays are fine but no device answers — same-WiFi isolation or a
+            firewall is likely blocking direct connections. Try another network
+            (or Tailscale), or add a TURN server in Settings → Network relay.
+          </span>
+        </>
+      )}
     </div>
   )
 }

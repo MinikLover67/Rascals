@@ -34,7 +34,7 @@ export interface RoomOpts {
   appId: string
   relayConfig: { urls: string[]; redundancy: number }
   turnConfig?: TurnServer[]
-  rtcConfig?: { iceTransportPolicy?: RTCIceTransportPolicy }
+  rtcConfig?: { iceTransportPolicy?: RTCIceTransportPolicy; iceServers?: Array<{ urls: string | string[] }> }
 }
 
 /** Room options from explicit settings (param, not store import — keeps the
@@ -61,6 +61,16 @@ export function roomOpts(t: {
     // Useless without TURN (nothing to relay through), hence the coupling.
     if (t.hideIp) {
       opts.rtcConfig = { iceTransportPolicy: 'relay' }
+    }
+    return opts
+  }
+  if (!t.hideIp) {
+    // Default path: free public STUN so server-reflexive candidates exist.
+    // Without this, same-NAT peers only get host candidates and many
+    // consumer routers still fail to connect them. Skipped under hideIp
+    // (a STUN query would itself reveal your IP to Google).
+    opts.rtcConfig = {
+      iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.relay.metered.ca:80'] }],
     }
   }
   return opts

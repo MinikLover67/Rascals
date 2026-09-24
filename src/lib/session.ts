@@ -326,6 +326,11 @@ export async function resetConnection(): Promise<string> {
   return `Reconnected — lobby plus ${rooms} chat room${rooms === 1 ? '' : 's'} refreshed. Give it half a minute.`
 }
 
+/** Ask a friend for their profile look (avatar/banner/theme/name style). */
+export async function requestPeerProfile(userId: string): Promise<void> {
+  await getChat()?.requestPeerProfile(userId).catch(() => {})
+}
+
 /** Accept an incoming request: befriend + join pairwise room (hellos do the rest). */
 export async function acceptRequest(userId: string, displayName: string): Promise<void> {
   const s = useApp.getState()

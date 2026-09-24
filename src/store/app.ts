@@ -203,6 +203,9 @@ interface AppState {
   }
   /** Sealed file-content keys by file id. */
   fkeys: Record<string, string>
+  /** Own profile look (meta persisted; image bytes in IndexedDB). */
+  profile: UserProfile
+  setProfile: (p: Partial<UserProfile>) => void
   /** Transient in-app toasts (never persisted). */
   toasts: Toast[]
   pushToast: (t: Omit<Toast, 'id'>) => void
@@ -274,6 +277,7 @@ const GROUPS_KEY = 'rascals.groups.v1'
 const GKEYS_KEY = 'rascals.gkeys.v1'
 const FKEYS_KEY = 'rascals.fkeys.v1'
 const SERVERS_KEY = 'rascals.servers.v1'
+const PROFILE_KEY = 'rascals.profile.v1'
 const MAX_STORED_PER_CHAT = 2000
 
 function load<T>(key: string, fallback: T): T {
@@ -290,6 +294,53 @@ function load<T>(key: string, fallback: T): T {
 function shapeStoredName(raw: unknown, userId: string): string {
   const clean = shapeDisplayName(raw)
   return clean || shortUid(typeof userId === 'string' ? userId : '')
+}
+
+/** Own profile look (Nitro-for-free): avatar/banner refs + theme + name style.
+ * Images live in IndexedDB; only ids + colors travel here. Synced to peers
+ * on demand (they fetch when opening your profile). */
+export interface UserProfile {
+  avatar: { id: string; mime: string } | null
+  banner: { kind: 'gradient'; value: string } | { kind: 'image'; id: string; mime: string } | null
+  themePrimary: string
+  themeAccent: string
+  nameStyle: string
+}
+
+export const DEFAULT_PROFILE: UserProfile = {
+  avatar: null,
+  banner: null,
+  themePrimary: '#7c6cff',
+  themeAccent: '#3ddc84',
+  nameStyle: 'default',
+}
+
+export function shapeProfile(raw: unknown): UserProfile {
+  const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  const hex = (v: unknown, fb: string): string =>
+    typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v : fb
+  const img = (v: unknown): { id: string; mime: string } | null => {
+    if (typeof v !== 'object' || v === null) return null
+    const r = v as Record<string, unknown>
+    if (typeof r.id !== 'string' || typeof r.mime !== 'string' || !r.id || !r.mime.startsWith('image/')) return null
+    return { id: r.id.slice(0, 64), mime: r.mime.slice(0, 64) }
+  }
+  let banner: UserProfile['banner'] = null
+  const b = o.banner as Record<string, unknown> | undefined
+  if (b && typeof b === 'object') {
+    if (b.kind === 'gradient' && typeof b.value === 'string') banner = { kind: 'gradient', value: b.value.slice(0, 160) }
+    else {
+      const bi = img(b)
+      if (bi) banner = { kind: 'image', ...bi }
+    }
+  }
+  return {
+    avatar: img(o.avatar),
+    banner,
+    themePrimary: hex(o.themePrimary, DEFAULT_PROFILE.themePrimary),
+    themeAccent: hex(o.themeAccent, DEFAULT_PROFILE.themeAccent),
+    nameStyle: typeof o.nameStyle === 'string' ? o.nameStyle.slice(0, 32) : 'default',
+  }
 }
 
 export const useApp = create<AppState>((set) => ({
@@ -346,6 +397,17 @@ export const useApp = create<AppState>((set) => ({
       toasts: [...s.toasts.slice(-3), { ...t, id: `${Date.now()}-${Math.random().toString(36).slice(2)}` }],
     })),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  profile: shapeProfile(load<unknown>(PROFILE_KEY, null)),
+  setProfile: (p) =>
+    set((s) => {
+      const next = shapeProfile({ ...s.profile, ...p })
+      try {
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
+      } catch {
+        // storage full — session keeps it in memory
+      }
+      return { profile: next }
+    }),
   favorites: load<Record<string, number>>(FAVORITES_KEY, {}),
   toggleFavorite: (userId) =>
     set((s) => {

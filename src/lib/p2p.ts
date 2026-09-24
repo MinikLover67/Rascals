@@ -176,6 +176,32 @@ export interface FileGetMsg {
   [key: string]: string | number
 }
 
+/** Profile look exchange (Nitro-for-free): request + versioned show.
+ * Images ride as base64 boxes sealed with the DM session key, capped small.
+ * Old clients have no handler and ignore both actions (safe no-op). */
+export interface ProfileReqMsg {
+  v: number
+  to: string
+  from: string
+  [key: string]: string | number
+}
+export interface ProfileShowMsg {
+  v: number
+  to: string
+  from: string
+  themePrimary: string
+  themeAccent: string
+  nameStyle: string
+  avatarMime?: string
+  avatarBox?: string
+  avatarNonce?: string
+  bannerMime?: string
+  bannerBox?: string
+  bannerNonce?: string
+  bannerCss?: string
+  [key: string]: string | number | undefined
+}
+
 export type MsgActionName =
   | 'msg'
   | 'ack'
@@ -187,6 +213,8 @@ export type MsgActionName =
   | 'fchunk'
   | 'fbatch'
   | 'fget'
+  | 'profget'
+  | 'profshow'
   | 'ctrl'
   | 'call'
 export type MsgWire =
@@ -200,6 +228,8 @@ export type MsgWire =
   | FileChunkMsg
   | FileBatchMsg
   | FileGetMsg
+  | ProfileReqMsg
+  | ProfileShowMsg
   | CtrlMsg
   | CallMsg
 
@@ -448,6 +478,8 @@ export interface MsgHandlers {
   onFileChunk: (from: string, msg: FileChunkMsg) => void
   onFileBatch: (from: string, msg: FileBatchMsg) => void
   onFileGet: (from: string, msg: FileGetMsg) => void
+  onProfileGet: (from: string, msg: ProfileReqMsg) => void
+  onProfileShow: (from: string, msg: ProfileShowMsg) => void
   onCtrl: (from: string, msg: CtrlMsg) => void
   onCall: (from: string, msg: CallMsg) => void
 }
@@ -705,6 +737,16 @@ export class P2P {
         return
       if (typeof data.fileId === 'string')
         this.msg?.onFileGet(data.from, data)
+    }
+    wire('profget').onMessage = (data: ProfileReqMsg) => {
+      if (!data || data.v !== 1 || data.from !== friendId || data.to !== me)
+        return
+      this.msg?.onProfileGet(data.from, data)
+    }
+    wire('profshow').onMessage = (data: ProfileShowMsg) => {
+      if (!data || data.v !== 1 || data.from !== friendId || data.to !== me)
+        return
+      this.msg?.onProfileShow(data.from, data)
     }
     wire('ctrl').onMessage = (data: CtrlMsg) => {
       if (!data || data.v !== 1 || data.from !== friendId || data.to !== me)

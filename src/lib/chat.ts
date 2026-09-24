@@ -198,6 +198,8 @@ export interface ChatApi {
   sendFile: (friendId: string, blob: Blob, name: string, opts?: SendFileOpts) => Promise<string | null>
   /** Ask the peer to stream a file's chunks (used for resume). */
   requestFile: (friendId: string, fileId: string, fromSeq?: number) => Promise<void>
+  /** Ask a friend for their profile look (avatar/banner/theme/name style). */
+  requestPeerProfile: (friendId: string) => Promise<void>
   /** Send a pairwise-encrypted control payload (group/server invites). */
   sendCtrl: (friendId: string, payload: AnyInvitePayload) => Promise<boolean>
   /** Register the invite receiver (wired by session to chat-group/chat-server). */
@@ -575,6 +577,60 @@ export function bindChat(
         await streamChunks(from, msg.fileId, blob, Math.max(0, msg.fromSeq | 0))
       })()
     },
+    onProfileGet: (from) => {
+      // They opened our profile: answer with our look (best effort).
+      void sendPeerProfile(from).catch(() => {})
+    },
+    onProfileShow: (from, msg) => {
+      void (async () => {
+        try {
+          const mod = await import('./profile')
+          const hex = (v: unknown, fb: string): string =>
+            typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v : fb
+          const key = await keyFor(from)
+          const openImage = async (
+            mime: unknown,
+            nonce: unknown,
+            box: unknown,
+            capBytes: number,
+          ): Promise<Blob | null> => {
+            if (typeof mime !== 'string' || !mime.startsWith('image/')) return null
+            if (typeof nonce !== 'string' || typeof box !== 'string') return null
+            if (box.length > capBytes * 2) return null
+            const plain = await openBox(key, nonce, box)
+            if (!plain) return null
+            try {
+              const bin = atob(plain)
+              if (bin.length <= 0 || bin.length > capBytes) return null
+              const u8 = new Uint8Array(bin.length)
+              for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i)
+              return new Blob([u8], { type: mime.slice(0, 64) })
+            } catch {
+              return null
+            }
+          }
+          const [avatarBlob, bannerBlob] = await Promise.all([
+            openImage(msg.avatarMime, msg.avatarNonce, msg.avatarBox, 384 * 1024),
+            openImage(msg.bannerMime, msg.bannerNonce, msg.bannerBox, 768 * 1024),
+          ])
+          const profile = {
+            themePrimary: hex(msg.themePrimary, '#7c6cff'),
+            themeAccent: hex(msg.themeAccent, '#3ddc84'),
+            nameStyle: typeof msg.nameStyle === 'string' ? msg.nameStyle.slice(0, 32) : 'default',
+            avatarMime: avatarBlob?.type ?? null,
+            bannerMime: bannerBlob?.type ?? null,
+            bannerCss:
+              typeof msg.bannerCss === 'string' && !bannerBlob ? msg.bannerCss.slice(0, 200) : null,
+            at: Date.now(),
+          }
+          if (avatarBlob) await mod.savePeerBlob(from, 'avatar', avatarBlob)
+          if (bannerBlob) await mod.savePeerBlob(from, 'banner', bannerBlob)
+          await mod.savePeerProfile(from, profile)
+        } catch {
+          // corrupt profile — keep the cache we have
+        }
+      })()
+    },
     onCtrl: (from, msg) => {
       void (async () => {
         const plain = await openBox(await keyFor(from), msg.nonce, msg.box)
@@ -856,6 +912,67 @@ export function bindChat(
       .sendAction(friendId, 'fget', { v: 1, to: friendId, from: me, fileId, fromSeq })
       .catch(() => {})
   }
+
+  async function requestPeerProfile(friendId: string): Promise<void> {
+    const inst = p2p()
+    if (!inst || inst.peerCount(friendId) === 0) return
+    await inst
+      .sendAction(friendId, 'profget', { v: 1, to: friendId, from: me })
+      .catch(() => {})
+  }
+
+  async function loadProfileBlob(
+    kind: 'avatar' | 'banner',
+    ref: { id: string } | null | undefined,
+  ): Promise<Blob | null> {
+    if (!ref) return null
+    try {
+      const mod = await import('./profile')
+      return kind === 'avatar' ? mod.loadAvatar(ref.id) : mod.loadBanner(ref.id)
+    } catch {
+      return null
+    }
+  }
+
+  /** Seal a profile image for transport (null when missing/oversize). */
+  async function sealProfileImage(
+    friendId: string,
+    load: () => Promise<Blob | null>,
+    capBytes: number,
+  ): Promise<{ mime: string; nonce: string; box: string } | null> {    try {
+      const blob = await load()
+      if (!blob || blob.size <= 0 || blob.size > capBytes) return null
+      const bytes = new Uint8Array(await blob.arrayBuffer())
+      const { nonce, box } = await seal(await keyFor(friendId), bytesToB64(bytes))
+      return { mime: blob.type || 'application/octet-stream', nonce, box }
+    } catch {
+      return null
+    }
+  }
+
+  async function sendPeerProfile(friendId: string): Promise<void> {
+    const inst = p2p()
+    if (!inst || inst.peerCount(friendId) === 0) return
+    const p = useApp.getState().profile
+    const bannerRef = p.banner?.kind === 'image' ? p.banner : null
+    const [avatar, banner] = await Promise.all([
+      p.avatar ? sealProfileImage(friendId, () => loadProfileBlob('avatar', p.avatar), 384 * 1024) : null,
+      bannerRef ? sealProfileImage(friendId, () => loadProfileBlob('banner', bannerRef), 768 * 1024) : null,
+    ])
+    await inst
+      .sendAction(friendId, 'profshow', {
+        v: 1,
+        to: friendId,
+        from: me,
+        themePrimary: p.themePrimary,
+        themeAccent: p.themeAccent,
+        nameStyle: p.nameStyle,
+        ...(avatar ? { avatarMime: avatar.mime, avatarNonce: avatar.nonce, avatarBox: avatar.box } : {}),
+        ...(banner ? { bannerMime: banner.mime, bannerNonce: banner.nonce, bannerBox: banner.box } : {}),
+        ...(p.banner?.kind === 'gradient' ? { bannerCss: p.banner.value } : {}),
+      })
+      .catch(() => {})
+  }
   async function sendTyping(friendId: string, typing: boolean): Promise<void> {
     const inst = p2p()
     if (!inst || inst.peerCount(friendId) === 0) return
@@ -952,6 +1069,7 @@ export function bindChat(
     sendPin,
     sendFile,
     requestFile,
+    requestPeerProfile,
     sendCtrl,
     onInvite,
     sendCall,
