@@ -356,7 +356,7 @@ function VoiceHeaderButton({ chatKey, isGroup, title }: { chatKey: string; isGro
           title={inCallWith ? 'In call (controls below)' : 'Start a voice call'}
         >
           <Phone size={14} />
-          {inCallWith ? 'In call...' : 'Call'}
+          {inCallWith ? 'In call…' : 'Call'}
         </button>
       </>
     )
@@ -728,7 +728,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
         })}
         {typing && (
           <div className="truncate text-xs italic text-rascal-dim">
-            {typingLabel} is typing...
+            {typingLabel} is typing…
           </div>
         )}
       </div>

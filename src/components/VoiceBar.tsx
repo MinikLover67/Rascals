@@ -25,7 +25,7 @@ export default function VoiceBar() {
   if (!voice.call && !voice.channel) return null
   const api = getVoice()
   const label = voice.call
-    ? `${voice.call.peerName} - ${voice.call.state === 'ringing' ? (voice.call.outgoing ? 'ringing...' : 'connecting...') : fmtElapsed(voice.call.startedAt, now)}`
+    ? `${voice.call.peerName} - ${voice.call.state === 'ringing' ? (voice.call.outgoing ? 'ringing…' : 'connecting…') : fmtElapsed(voice.call.startedAt, now)}`
     : `${voice.channel?.title} - ${voice.participants.length} in voice`
 
   async function toggleShare() {

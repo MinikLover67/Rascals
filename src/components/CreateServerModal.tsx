@@ -60,7 +60,7 @@ export default function CreateServerModal({
           disabled={busy || !name.trim()}
           className="mt-3 w-full rounded-lg bg-rascal-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
         >
-          {busy ? 'Creating...' : 'Create server'}
+          {busy ? 'Creating…' : 'Create server'}
         </button>
       </div>
     </div>

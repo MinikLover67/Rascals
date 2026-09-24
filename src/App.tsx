@@ -188,7 +188,7 @@ function Rail() {
         onClick={() => setCreating(true)}
         title="Create a server"
         aria-label="Create a server"
-        className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-rascal-line text-rascal-dim hover:text-white"
+        className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-rascal-line text-rascal-dim transition-[border-radius,color] hover:text-white"
       >
         <Plus size={18} />
       </button>

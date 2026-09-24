@@ -33,6 +33,22 @@ body,
   height: 100%;
 }
 
+:root {
+  color-scheme: dark;
+}
+[data-theme='light'] {
+  color-scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
 body {
   margin: 0;
   background: var(--color-rascal-bg);

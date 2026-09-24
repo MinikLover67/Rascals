@@ -42,7 +42,11 @@ export default function Toasts() {
   }
 
   return (
-    <div className="pointer-events-none absolute bottom-4 right-4 z-50 flex w-80 flex-col gap-2">
+    <div
+      role="status"
+      aria-live="polite"
+      className="pointer-events-none absolute bottom-4 right-4 z-50 flex w-80 flex-col gap-2"
+    >
       {toasts.map((t) => (
         <button
           key={t.id}

@@ -209,7 +209,7 @@ export default function FriendsPanel() {
             {outgoing.map((r) => (
               <div key={r.userId} data-testid="request-out" className="mt-2 rounded-lg border border-rascal-line bg-rascal-bg p-2">
                 <div className="truncate text-sm">{r.displayName}</div>
-                <div className="text-[11px] text-rascal-amber">waiting for them... (retries automatically)</div>
+                <div className="text-[11px] text-rascal-amber">waiting for them… (retries automatically)</div>
                 <div className="mt-1.5 flex gap-1.5">
                   <button
                     onClick={() => retry(r.userId)}
@@ -470,7 +470,7 @@ function AppVersion() {
   async function check() {
     if (busy) return
     setBusy(true)
-    setNote('checking...')
+    setNote('checking…')
     try {
       const { checkForUpdates } = await import('../lib/updater')
       setNote(await checkForUpdates(true))
