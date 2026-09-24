@@ -33,6 +33,19 @@ function fmtDay(ts: number): string {
   })
 }
 
+/** Scroll a message into view (reply quotes jump to the original). */
+function jumpToMsg(id: string): void {
+  try {
+    document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  } catch {
+    // element gone (filtered view) — nothing to jump to
+  }
+}
+
+// Grouping window: consecutive same-author messages within 5 minutes share
+// one block (name + time shown once), Discord-style.
+const GROUP_WINDOW_MS = 5 * 60 * 1000
+
 function CheckSvg({ double }: { double?: boolean }) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -114,6 +127,8 @@ function Bubble({
   onReply,
   onEdit,
   onDelete,
+  first,
+  last,
 }: {
   m: ChatMessage
   chatKey: string
@@ -124,6 +139,9 @@ function Bubble({
   onReply: (m: ChatMessage) => void
   onEdit: (m: ChatMessage) => void
   onDelete: (m: ChatMessage) => void
+  /** First/last message of its author group (name + time show once). */
+  first: boolean
+  last: boolean
 }) {
   const [picking, setPicking] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -182,7 +200,7 @@ function Bubble({
             : 'rounded-bl-md bg-white/[0.06]'
         }`}
       >
-        {senderName && (
+        {senderName && first && (
           <div className="mb-0.5 truncate text-[11px] font-semibold text-rascal-accent" title={senderName}>{senderName}</div>
         )}
         {pinned && (
@@ -192,7 +210,9 @@ function Bubble({
         )}
         {replyTarget && !replyTarget.deleted && (
           <div
-            className={`mb-1.5 truncate rounded-md border-l-2 px-2 py-1 text-xs opacity-80 ${
+            onClick={() => jumpToMsg(replyTarget.id)}
+            title="Jump to original message"
+            className={`mb-1.5 cursor-pointer truncate rounded-md border-l-2 px-2 py-1 text-xs opacity-80 hover:opacity-100 ${
               m.mine ? 'border-white/50 bg-black/20' : 'border-rascal-accent bg-black/20'
             }`}
           >
@@ -230,18 +250,18 @@ function Bubble({
             m.mine ? 'text-white/70' : 'text-rascal-dim'
           }`}
         >
-          <span>{fmtTime(m.ts)}</span>
+          <span>{last && fmtTime(m.ts)}</span>
           {m.editedAt && <span>(edited)</span>}
           <Ticks m={m} />
           {!m.sys && (
           <span className="hidden gap-1 group-hover:flex">
-            <button onClick={() => onReply(m)} title="Reply" aria-label="Reply" className="rounded p-1 hover:bg-white/10 hover:opacity-80">
+            <button onClick={() => onReply(m)} title="Reply" aria-label="Reply" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">
               <Reply size={14} />
             </button>
-            <button onClick={() => setPicking((v) => !v)} title="React" aria-label="React" className="rounded p-1 hover:bg-white/10 hover:opacity-80">
+            <button onClick={() => setPicking((v) => !v)} title="React" aria-label="React" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">
               <SmilePlus size={14} />
             </button>
-            <button onClick={() => void copyMessage()} title="Copy message" aria-label="Copy message" className="rounded p-1 hover:bg-white/10 hover:opacity-80">
+            <button onClick={() => void copyMessage()} title="Copy message" aria-label="Copy message" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">
               {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
             <button
@@ -250,17 +270,17 @@ function Bubble({
               }}
               title={pinned ? 'Unpin' : 'Pin'}
               aria-label={pinned ? 'Unpin' : 'Pin'}
-              className="rounded p-1 hover:bg-white/10 hover:opacity-80"
+              className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent"
             >
               {pinned ? <PinOff size={14} /> : <Pin size={14} />}
             </button>
             {m.mine && !m.file && !m.sys && (
-              <button onClick={() => onEdit(m)} title="Edit" aria-label="Edit" className="rounded p-1 hover:bg-white/10 hover:opacity-80">
+              <button onClick={() => onEdit(m)} title="Edit" aria-label="Edit" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">
                 <Pencil size={14} />
               </button>
             )}
             {m.mine && !m.sys && (
-              <button onClick={() => onDelete(m)} title="Delete" aria-label="Delete" className="rounded p-1 hover:bg-white/10 hover:opacity-80">
+              <button onClick={() => onDelete(m)} title="Delete" aria-label="Delete" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">
                 <Trash2 size={14} />
               </button>
             )}
@@ -455,6 +475,29 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
     return visible.map((m, i) => ({ m, day: days[i], showDay: i === 0 || days[i] !== days[i - 1] }))
   }, [visible])
 
+  // Message grouping (Discord-style): consecutive messages from the same
+  // author within the window share one block — name and time show once.
+  // Sys/deleted messages and day dividers always break groups.
+  const groups = useMemo(() => {
+    const authorKey = (m: ChatMessage): string => (m.mine ? 'me' : (m.sender ?? 'them'))
+    const out: Array<typeof dated> = []
+    for (const d of dated) {
+      const cur = out[out.length - 1]
+      const prev = cur?.[cur.length - 1]
+      const sameAuthor =
+        prev !== undefined &&
+        !prev.m.sys &&
+        !d.m.sys &&
+        !prev.m.deleted &&
+        !d.m.deleted &&
+        authorKey(prev.m) === authorKey(d.m) &&
+        Math.abs(d.m.ts - prev.m.ts) <= GROUP_WINDOW_MS
+      if (cur && sameAuthor && !d.showDay) cur.push(d)
+      else out.push([d])
+    }
+    return out
+  }, [dated])
+
   // Mark read whenever the open chat changes (store sync on navigation).
   useEffect(() => {
     // eslint-disable-next-line react/set-state-in-effect
@@ -465,6 +508,14 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
 
   // Auto-scroll to bottom on new messages (if already near bottom).
   const stick = useRef(true)
+  const [stuck, setStuck] = useState(true)
+  function scrollToBottom() {
+    const el = listRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+    stick.current = true
+    setStuck(true)
+  }
   useEffect(() => {
     const el = listRef.current
     if (el && stick.current) el.scrollTop = el.scrollHeight
@@ -489,6 +540,21 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, 128)}px`
   }, [draft, chatKey])
+
+  // Escape closes the topmost layer first: editing, pickers/modals, reply.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (editing) setEditing(null)
+      else if (gifOpen) setGifOpen(false)
+      else if (settingsOpen) setSettingsOpen(false)
+      else if (infoOpen) setInfoOpen(false)
+      else if (searchOpen) setSearchOpen(false)
+      else if (replyTo) setReplyTo(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [editing, gifOpen, settingsOpen, infoOpen, searchOpen, replyTo])
 
   // Staged attachments: drops and the Attach button park files here until
   // the user presses Enter/Send. Declared with the other hooks (above the
@@ -683,54 +749,70 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
         </div>
       )}
 
+      <div className="relative flex min-h-0 flex-1 flex-col">
       <div
         ref={listRef}
         onScroll={(e) => {
           const el = e.currentTarget
-          stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+          const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+          stick.current = nearBottom
+          setStuck(nearBottom)
         }}
-        className="flex-1 space-y-2 overflow-y-auto p-4 scroll-thin"
+        className="absolute inset-0 space-y-2 overflow-y-auto p-4 scroll-thin"
       >
         {visible.length === 0 && (
           <div className="mt-10 text-center text-sm text-rascal-dim">
             {q ? 'No messages match.' : `Say hi - everything here is encrypted end to end.`}
           </div>
         )}
-        {dated.map(({ m, day, showDay }) => {
-          return (
-            <div key={m.id}>
-              {showDay && (
-                <div className="my-3 flex items-center gap-2 text-[11px] text-rascal-dim">
-                  <div className="h-px flex-1 bg-rascal-line" />
-                  {day}
-                  <div className="h-px flex-1 bg-rascal-line" />
-                </div>
-              )}
-              <Bubble
-                m={m}
-                chatKey={chatKey}
-                myId={myId}
-                senderName={isGroup && !m.mine ? nameOf(m.sender ?? '') : null}
-                replyTarget={m.replyTo ? byId.get(m.replyTo) : undefined}
-                pinned={pinnedSet.has(m.id)}
-                onReply={(x) => setReplyTo(x.id)}
-                onEdit={(x) => {
-                  setEditing(x.id)
-                  setEditText(x.body)
-                }}
-                onDelete={(x) => {
-                  if (window.confirm('Delete this message for everyone?'))
-                    void api.sendDelete(chatKey, x.id).catch(() => {})
-                }}
-              />
-            </div>
-          )
-        })}
+        {groups.map((g, gi) => (
+          <div key={g[0].m.id + '-' + gi} className="space-y-1">
+            {g.map(({ m, day, showDay }, i) => (
+              <div key={m.id}>
+                {showDay && (
+                  <div className="my-3 flex items-center gap-2 text-[11px] text-rascal-dim">
+                    <div className="h-px flex-1 bg-rascal-line" />
+                    {day}
+                    <div className="h-px flex-1 bg-rascal-line" />
+                  </div>
+                )}
+                <Bubble
+                  m={m}
+                  chatKey={chatKey}
+                  myId={myId}
+                  senderName={isGroup && !m.mine ? nameOf(m.sender ?? '') : null}
+                  replyTarget={m.replyTo ? byId.get(m.replyTo) : undefined}
+                  pinned={pinnedSet.has(m.id)}
+                  onReply={(x) => setReplyTo(x.id)}
+                  onEdit={(x) => {
+                    setEditing(x.id)
+                    setEditText(x.body)
+                  }}
+                  onDelete={(x) => {
+                    if (window.confirm('Delete this message for everyone?'))
+                      void api.sendDelete(chatKey, x.id).catch(() => {})
+                  }}
+                  first={i === 0}
+                  last={i === g.length - 1}
+                />
+              </div>
+            ))}
+          </div>
+        ))}
         {typing && (
           <div className="truncate text-xs italic text-rascal-dim">
             {typingLabel} is typing…
           </div>
         )}
+      </div>
+      {!stuck && (
+        <button
+          onClick={scrollToBottom}
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-rascal-accent px-3 py-1 text-xs font-semibold text-white shadow-xl"
+        >
+          ↓ New messages
+        </button>
+      )}
       </div>
 
       {replyMsg && !replyMsg.deleted && (

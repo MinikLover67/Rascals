@@ -146,8 +146,35 @@ function MainPanel() {
           network is fine. When you're both online you'll see each other light
           up green — no servers involved.
         </p>
+        {friends.length === 0 && <CopyInviteCta />}
       </div>
     </div>
+  )
+}
+
+function CopyInviteCta() {
+  const identity = useApp((s) => s.identity)
+  const [copied, setCopied] = useState(false)
+  async function copy() {
+    if (!identity) return
+    const { userId, name } = identity
+    try {
+      const { encodeInvite } = await import('./lib/invite')
+      await navigator.clipboard.writeText(encodeInvite(userId, name))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard unavailable — code lives in the Friends panel instead
+    }
+  }
+  if (!identity) return null
+  return (
+    <button
+      onClick={() => void copy()}
+      className="mx-auto mt-4 block rounded-xl bg-rascal-accent px-4 py-2 text-sm font-semibold text-white"
+    >
+      {copied ? 'Copied — send it to a friend!' : 'Copy my invite code'}
+    </button>
   )
 }
 
