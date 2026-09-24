@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Mic } from 'lucide-react'
 import { chatFor } from '../lib/chatapi'
 import { fmtDuration } from '../lib/format'
 
@@ -120,9 +121,10 @@ export default function VoiceButton({ chatKey }: { chatKey: string }) {
           onClick={() => void start()}
           disabled={busy}
           title="Record a voice message"
-          className="rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm text-rascal-dim hover:text-white disabled:opacity-40"
+          aria-label="Record a voice message"
+          className="rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-rascal-dim hover:text-white disabled:opacity-40"
         >
-          Mic
+          <Mic size={18} />
         </button>
         {error && <span className="mt-1 text-[10px] text-red-300">{error}</span>}
       </div>

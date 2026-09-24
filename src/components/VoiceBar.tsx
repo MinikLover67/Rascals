@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Mic, MicOff, PhoneOff, ScreenShare, Volume2, VolumeX } from 'lucide-react'
 import { getVoice } from '../lib/session'
 import { useApp } from '../store/app'
 
@@ -45,22 +46,25 @@ export default function VoiceBar() {
       <button
         onClick={() => api?.setMuted(!voice.muted)}
         title={voice.muted ? 'Unmute' : 'Mute'}
-        className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${voice.muted ? 'bg-red-400/20 text-red-300' : 'bg-white/5 hover:bg-white/10'}`}
+        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold ${voice.muted ? 'bg-red-400/20 text-red-300' : 'bg-white/5 hover:bg-white/10'}`}
       >
+        {voice.muted ? <MicOff size={14} /> : <Mic size={14} />}
         {voice.muted ? 'Unmute' : 'Mute'}
       </button>
       <button
         onClick={() => api?.setDeafened(!voice.deafened)}
         title={voice.deafened ? 'Undeafen' : 'Deafen (silence everyone)'}
-        className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${voice.deafened ? 'bg-red-400/20 text-red-300' : 'bg-white/5 hover:bg-white/10'}`}
+        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold ${voice.deafened ? 'bg-red-400/20 text-red-300' : 'bg-white/5 hover:bg-white/10'}`}
       >
+        {voice.deafened ? <VolumeX size={14} /> : <Volume2 size={14} />}
         {voice.deafened ? 'Undeafen' : 'Deafen'}
       </button>
       <button
         onClick={() => void toggleShare()}
         title={voice.sharing ? 'Stop sharing' : 'Share your screen'}
-        className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${voice.sharing ? 'bg-rascal-accent text-white' : 'bg-white/5 hover:bg-white/10'}`}
+        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold ${voice.sharing ? 'bg-rascal-accent text-white' : 'bg-white/5 hover:bg-white/10'}`}
       >
+        <ScreenShare size={14} />
         {voice.sharing ? 'Sharing...' : 'Share'}
       </button>
       <button
@@ -70,8 +74,9 @@ export default function VoiceBar() {
         }}
         title="Leave"
         data-testid="leave-call"
-        className="rounded-lg bg-red-500/80 px-3 py-1 text-xs font-semibold text-white hover:bg-red-500"
+        className="flex items-center gap-1.5 rounded-lg bg-red-500/80 px-3 py-1 text-xs font-semibold text-white hover:bg-red-500"
       >
+        <PhoneOff size={14} />
         Leave
       </button>
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react'
+import { Plus, Upload } from 'lucide-react'
 import ChatPanel from './components/ChatPanel'
 import CreateServerModal from './components/CreateServerModal'
 import FriendsPanel from './components/FriendsPanel'
@@ -186,9 +187,10 @@ function Rail() {
       <button
         onClick={() => setCreating(true)}
         title="Create a server"
-        className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-rascal-line text-xl text-rascal-dim hover:text-white"
+        aria-label="Create a server"
+        className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-rascal-line text-rascal-dim hover:text-white"
       >
-        +
+        <Plus size={18} />
       </button>
       {creating && (
         <CreateServerModal
@@ -383,7 +385,8 @@ export default function App() {
           className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center border-2 border-dashed border-rascal-accent bg-rascal-accent/10"
           data-testid="drop-overlay"
         >
-          <span className="rounded-xl bg-rascal-panel px-4 py-2 text-sm font-semibold">
+          <span className="flex items-center gap-1.5 rounded-xl bg-rascal-panel px-4 py-2 text-sm font-semibold">
+            <Upload size={18} className="text-rascal-accent" />
             {dropChatKey() ? 'Drop files to attach — Enter sends them' : 'Open a chat first to send files'}
           </span>
         </div>

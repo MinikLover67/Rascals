@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Check, Download } from 'lucide-react'
 import { blobUrl } from '../lib/idb'
 import { chatFor } from '../lib/chatapi'
 import { fmtBytes, fmtDuration } from '../lib/format'
@@ -12,10 +13,11 @@ function SaveLink({ url, filename }: { url: string; filename: string }) {
   if (saved) {
     return (
       <span
-        className="shrink-0 rounded-md bg-rascal-green/20 px-2 py-1 text-xs font-semibold text-rascal-green"
+        className="flex shrink-0 items-center gap-1 rounded-md bg-rascal-green/20 px-2 py-1 text-xs font-semibold text-rascal-green"
         title={`Saved ${filename} — check your Downloads folder`}
       >
-        ✓ Saved
+        <Check size={12} />
+        Saved
       </span>
     )
   }
@@ -27,8 +29,9 @@ function SaveLink({ url, filename }: { url: string; filename: string }) {
         e.stopPropagation()
         setSaved(true)
       }}
-      className="shrink-0 rounded-md bg-white/10 px-2 py-1 text-xs font-semibold hover:bg-white/20"
+      className="flex shrink-0 items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-xs font-semibold hover:bg-white/20"
     >
+      <Download size={12} />
       Save
     </a>
   )

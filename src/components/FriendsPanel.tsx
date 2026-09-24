@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Settings, Star, UserPlus, X } from 'lucide-react'
 import { decodeInvite, encodeInvite } from '../lib/invite'
 import { acceptRequest, getP2P, requestFriend, unfriend } from '../lib/session'
 import { useApp, unreadCount } from '../store/app'
@@ -273,9 +274,10 @@ export default function FriendsPanel() {
                   toggleFavorite(f.userId)
                 }}
                 title={fav ? 'Unfavorite' : 'Favorite (pin to top)'}
-                className={`rounded px-1.5 text-sm leading-none hover:bg-white/10 ${fav ? 'text-rascal-amber' : 'text-rascal-dim/50 hover:text-rascal-amber'}`}
+                aria-label={fav ? 'Unfavorite' : 'Favorite'}
+                className={`rounded p-1 leading-none hover:bg-white/10 ${fav ? 'text-rascal-amber' : 'text-rascal-dim/50 hover:text-rascal-amber'}`}
               >
-                {fav ? '★' : '☆'}
+                <Star size={15} fill={fav ? 'currentColor' : 'none'} />
               </button>
               <button
                 onClick={(e) => {
@@ -285,10 +287,11 @@ export default function FriendsPanel() {
                     void unfriend(f.userId).catch(() => {})
                 }}
                 title="Remove friend"
+                aria-label="Remove friend"
                 data-testid="remove-friend"
-                className="rounded px-1.5 text-rascal-dim hover:bg-white/10 hover:text-rascal-red"
+                className="rounded p-1 text-rascal-dim hover:bg-white/10 hover:text-rascal-red"
               >
-                ×
+                <X size={14} />
               </button>
             </div>
           )
@@ -314,16 +317,18 @@ export default function FriendsPanel() {
                   onClick={() => void requestFriend(r.userId, r.displayName).catch(() => {})}
                   title="Send friend request again (no code needed)"
                   data-testid="readd-friend"
-                  className="shrink-0 rounded-md bg-rascal-accent/20 px-2 py-1 text-[11px] font-semibold text-rascal-accent hover:bg-rascal-accent/30"
+                  className="flex shrink-0 items-center gap-1 rounded-md bg-rascal-accent/20 px-2 py-1 text-[11px] font-semibold text-rascal-accent hover:bg-rascal-accent/30"
                 >
+                  <UserPlus size={12} />
                   Re-add
                 </button>
                 <button
                   onClick={() => dropRecent(r.userId)}
                   title="Forget"
-                  className="rounded px-1 text-rascal-dim hover:text-white"
+                  aria-label="Forget"
+                  className="rounded p-1 text-rascal-dim hover:text-white"
                 >
-                  ×
+                  <X size={12} />
                 </button>
               </div>
             ))}
@@ -338,9 +343,10 @@ export default function FriendsPanel() {
         <button
           onClick={() => setSettingsOpen(true)}
           title="Settings (connection, devices, updates)"
-          className="rounded-md px-2 py-1 text-xs hover:bg-white/5 hover:text-white"
+          aria-label="Settings"
+          className="rounded-md p-1.5 hover:bg-white/5 hover:text-white"
         >
-          Settings
+          <Settings size={14} />
         </button>
       </div>
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}

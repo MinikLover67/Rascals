@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent as ReactClipboardEvent } from 'react'
+import { Check, Copy, Paperclip, Pencil, Phone, Pin, PinOff, Reply, Search, SendHorizontal, Settings, SmilePlus, Trash2, Users, X } from 'lucide-react'
 import AttachmentCard from './AttachmentCard'
 import GifPicker from './GifPicker'
 import GroupInfoModal from './GroupInfoModal'
@@ -233,32 +234,34 @@ function Bubble({
           {m.editedAt && <span>(edited)</span>}
           <Ticks m={m} />
           {!m.sys && (
-          <span className="hidden gap-1.5 group-hover:flex">
-            <button onClick={() => onReply(m)} className="underline underline-offset-2 hover:opacity-80">
-              reply
+          <span className="hidden gap-1 group-hover:flex">
+            <button onClick={() => onReply(m)} title="Reply" aria-label="Reply" className="rounded p-1 hover:bg-white/10 hover:opacity-80">
+              <Reply size={14} />
             </button>
-            <button onClick={() => setPicking((v) => !v)} className="underline underline-offset-2 hover:opacity-80">
-              react
+            <button onClick={() => setPicking((v) => !v)} title="React" aria-label="React" className="rounded p-1 hover:bg-white/10 hover:opacity-80">
+              <SmilePlus size={14} />
             </button>
-            <button onClick={() => void copyMessage()} className="underline underline-offset-2 hover:opacity-80">
-              {copied ? 'copied!' : 'copy'}
+            <button onClick={() => void copyMessage()} title="Copy message" aria-label="Copy message" className="rounded p-1 hover:bg-white/10 hover:opacity-80">
+              {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
             <button
               onClick={() => {
                 void chatFor(chatKey).sendPin(chatKey, m.id, !pinned).catch(() => {})
               }}
-              className="underline underline-offset-2 hover:opacity-80"
+              title={pinned ? 'Unpin' : 'Pin'}
+              aria-label={pinned ? 'Unpin' : 'Pin'}
+              className="rounded p-1 hover:bg-white/10 hover:opacity-80"
             >
-              {pinned ? 'unpin' : 'pin'}
+              {pinned ? <PinOff size={14} /> : <Pin size={14} />}
             </button>
             {m.mine && !m.file && !m.sys && (
-              <button onClick={() => onEdit(m)} className="underline underline-offset-2 hover:opacity-80">
-                edit
+              <button onClick={() => onEdit(m)} title="Edit" aria-label="Edit" className="rounded p-1 hover:bg-white/10 hover:opacity-80">
+                <Pencil size={14} />
               </button>
             )}
             {m.mine && !m.sys && (
-              <button onClick={() => onDelete(m)} className="underline underline-offset-2 hover:opacity-80">
-                delete
+              <button onClick={() => onDelete(m)} title="Delete" aria-label="Delete" className="rounded p-1 hover:bg-white/10 hover:opacity-80">
+                <Trash2 size={14} />
               </button>
             )}
           </span>
@@ -349,9 +352,10 @@ function VoiceHeaderButton({ chatKey, isGroup, title }: { chatKey: string; isGro
           }}
           disabled={!!inCallWith}
           data-testid="call-button"
-          className="rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-white disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-white disabled:opacity-50"
           title={inCallWith ? 'In call (controls below)' : 'Start a voice call'}
         >
+          <Phone size={14} />
           {inCallWith ? 'In call...' : 'Call'}
         </button>
       </>
@@ -372,9 +376,10 @@ function VoiceHeaderButton({ chatKey, isGroup, title }: { chatKey: string; isGro
             })
           }
         }}
-        className={`rounded-md px-2 py-1 text-xs hover:bg-white/5 hover:text-white ${joined ? 'text-rascal-green' : 'text-rascal-dim'}`}
+        className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs hover:bg-white/5 hover:text-white ${joined ? 'text-rascal-green' : 'text-rascal-dim'}`}
         title={joined ? 'Leave voice channel' : 'Join voice channel'}
       >
+        <Phone size={14} />
         {joined ? 'Voice: on' : 'Voice'}
       </button>
     </>
@@ -635,25 +640,28 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
         {isGroup && (
           <button
             onClick={() => setInfoOpen(true)}
-            className="rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-white"
+            className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-white"
             title="Group members"
+            aria-label="Group members"
           >
-            Members
+            <Users size={16} />
           </button>
         )}
         <button
           onClick={() => setSearchOpen((v) => !v)}
-          className="rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-white"
+          className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-white"
           title="Search this chat"
+          aria-label="Search this chat"
         >
-          Search
+          <Search size={16} />
         </button>
         <button
           onClick={() => setSettingsOpen(true)}
-          className="rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-white"
+          className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-white"
           title="Settings"
+          aria-label="Settings"
         >
-          Settings
+          <Settings size={16} />
         </button>
       </div>
       <PinsStrip chatKey={chatKey} byId={byId} />
@@ -731,8 +739,8 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
           <span className="flex-1 truncate text-rascal-text">
             {(replyMsg.body || replyMsg.file?.name || 'attachment').slice(0, 100)}
           </span>
-          <button onClick={() => setReplyTo(null)} className="rounded px-1.5 text-rascal-dim hover:text-white">
-            x
+          <button onClick={() => setReplyTo(null)} title="Cancel reply" aria-label="Cancel reply" className="rounded p-1 text-rascal-dim hover:text-white">
+            <X size={12} />
           </button>
         </div>
       )}
@@ -780,9 +788,9 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
                   onClick={() => setPending((prev) => prev.filter((_, j) => j !== i))}
                   title="Remove"
                   aria-label={`Remove ${f.name}`}
-                  className="shrink-0 rounded px-1 text-rascal-dim hover:bg-white/10 hover:text-white"
+                  className="shrink-0 rounded p-0.5 text-rascal-dim hover:bg-white/10 hover:text-white"
                 >
-                  ✕
+                  <X size={12} />
                 </button>
               </span>
             ))}
@@ -793,9 +801,10 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
           <button
             onClick={() => fileRef.current?.click()}
             title="Attach files or images (staged until you press Send - E2EE, up to 25 MB)"
-            className="shrink-0 rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm text-rascal-dim hover:text-white"
+            aria-label="Attach files"
+            className="shrink-0 rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-rascal-dim hover:text-white"
           >
-            Attach
+            <Paperclip size={18} />
           </button>
           <VoiceButton chatKey={chatKey} />
           <button
@@ -823,9 +832,11 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
           <button
             onClick={() => void send()}
             disabled={!draft.trim() && pending.length === 0}
-            className="shrink-0 rounded-xl bg-rascal-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            title="Send"
+            aria-label="Send"
+            className="shrink-0 rounded-xl bg-rascal-accent px-3.5 py-2 text-white disabled:opacity-40"
           >
-            Send
+            <SendHorizontal size={18} />
           </button>
         </div>
         {fileErr && <div className="mt-1 px-1 text-[11px] text-red-300">{fileErr}</div>}

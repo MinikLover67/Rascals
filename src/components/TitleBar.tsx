@@ -1,3 +1,4 @@
+import { Minus, Square, X } from 'lucide-react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 
 function WinButton({
@@ -12,14 +13,14 @@ function WinButton({
   return (
     <button
       onClick={onClick}
-      aria-label={label}
-      className={`flex h-9 w-12 items-center justify-center text-sm text-rascal-dim hover:bg-white/10 hover:text-white ${
+      aria-label={label === 'min' ? 'Minimize' : label === 'max' ? 'Maximize' : 'Close'}
+      className={`flex h-9 w-12 items-center justify-center text-rascal-dim hover:bg-white/10 hover:text-white ${
         close ? 'hover:bg-rascal-red!' : ''
       }`}
     >
-      {label === 'min' && '–'}
-      {label === 'max' && '▢'}
-      {label === 'close' && '✕'}
+      {label === 'min' && <Minus size={14} />}
+      {label === 'max' && <Square size={12} />}
+      {label === 'close' && <X size={16} />}
     </button>
   )
 }

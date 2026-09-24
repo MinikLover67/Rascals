@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Phone, PhoneOff } from 'lucide-react'
 import { getVoice } from '../lib/session'
 import { useApp } from '../store/app'
 
@@ -35,16 +36,18 @@ export default function IncomingCallModal() {
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => void getVoice()?.declineCall()}
-            className="flex-1 rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold hover:bg-white/15"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold hover:bg-white/15"
           >
+            <PhoneOff size={16} />
             Decline
           </button>
           <button
             onClick={() => void accept()}
             disabled={busy}
             data-testid="accept-call"
-            className="flex-1 rounded-xl bg-rascal-green px-3 py-2 text-sm font-semibold text-black disabled:opacity-40"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-rascal-green px-3 py-2 text-sm font-semibold text-black disabled:opacity-40"
           >
+            <Phone size={16} />
             {busy ? 'Joining...' : 'Accept'}
           </button>
         </div>
