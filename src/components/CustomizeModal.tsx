@@ -164,7 +164,7 @@ export default function CustomizeModal({ onClose }: { onClose: () => void }) {
             onClick={handleClose}
             title={dirty && !confirmDiscard ? 'Discard unsaved changes' : 'Close'}
             aria-label="Close customization"
-            className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-white"
+            className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-rascal-text"
           >
             <X size={16} />
           </button>
@@ -211,7 +211,7 @@ export default function CustomizeModal({ onClose }: { onClose: () => void }) {
           {draft.avatar && (
             <button
               onClick={removeAvatar}
-              className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-rascal-dim hover:text-white"
+              className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-rascal-dim hover:text-rascal-text"
             >
               Remove
             </button>
@@ -250,7 +250,7 @@ export default function CustomizeModal({ onClose }: { onClose: () => void }) {
           {draft.banner && (
             <button
               onClick={removeBanner}
-              className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-rascal-dim hover:text-white"
+              className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-rascal-dim hover:text-rascal-text"
             >
               Remove
             </button>
@@ -331,7 +331,7 @@ export default function CustomizeModal({ onClose }: { onClose: () => void }) {
             <span className="flex-1 px-1 text-xs text-rascal-dim">Unsaved look changes</span>
             <button
               onClick={discard}
-              className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-rascal-dim hover:text-white"
+              className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-rascal-dim hover:text-rascal-text"
             >
               Reset
             </button>

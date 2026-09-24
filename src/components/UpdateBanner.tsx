@@ -30,7 +30,7 @@ export default function UpdateBanner() {
       {err && <span className="max-w-48 truncate text-[11px] text-red-300" title={err}>{err}</span>}
       <button
         onClick={() => dismissUpdate()}
-        className="rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-white"
+        className="rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-rascal-text"
       >
         Later
       </button>

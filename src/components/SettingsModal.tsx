@@ -244,7 +244,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
               className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm ${
                 section === id
                   ? 'bg-rascal-accent/15 font-semibold text-white'
-                  : 'text-rascal-dim hover:bg-white/5 hover:text-white'
+                  : 'text-rascal-dim hover:bg-white/5 hover:text-rascal-text'
               }`}
             >
               <Icon size={15} className={section === id ? 'text-rascal-accent' : ''} />
@@ -264,7 +264,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
               onClick={onClose}
               title="Close"
               aria-label="Close settings"
-              className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-white"
+              className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-rascal-text"
             >
               <X size={16} />
             </button>
@@ -327,7 +327,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                           onClick={() => playSound(ev.id)}
                           title="Preview"
                           aria-label={`Preview ${ev.label}`}
-                          className="rounded p-1.5 text-rascal-dim hover:bg-white/10 hover:text-white"
+                          className="rounded p-1.5 text-rascal-dim hover:bg-white/10 hover:text-rascal-text"
                         >
                           <Play size={13} />
                         </button>
@@ -339,7 +339,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                           disabled={soundBusy}
                           title="Import your own sound (wav/mp3/ogg, 2 MB max)"
                           aria-label={`Import ${ev.label} sound`}
-                          className="rounded p-1.5 text-rascal-dim hover:bg-white/10 hover:text-white disabled:opacity-40"
+                          className="rounded p-1.5 text-rascal-dim hover:bg-white/10 hover:text-rascal-text disabled:opacity-40"
                         >
                           <Upload size={13} />
                         </button>
@@ -348,7 +348,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                             onClick={() => void clearCustomSound(ev.id).then(() => flashSaved())}
                             title="Back to default"
                             aria-label={`Reset ${ev.label} sound`}
-                            className="rounded p-1.5 text-rascal-dim hover:bg-white/10 hover:text-white"
+                            className="rounded p-1.5 text-rascal-dim hover:bg-white/10 hover:text-rascal-text"
                           >
                             <RotateCcw size={13} />
                           </button>
@@ -759,7 +759,7 @@ function ProfileSection() {
             onFocus={(e) => e.target.select()}
             className="w-full rounded-lg border border-rascal-line bg-rascal-bg p-2 font-mono text-[10px] outline-none"
           />
-          <button onClick={() => void copyBackup()} className="mt-1 text-xs text-rascal-dim underline underline-offset-2 hover:text-white">
+          <button onClick={() => void copyBackup()} className="mt-1 text-xs text-rascal-dim underline underline-offset-2 hover:text-rascal-text">
             copy to clipboard
           </button>
         </div>

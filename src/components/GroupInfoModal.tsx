@@ -67,7 +67,7 @@ export default function GroupInfoModal({
       >
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold">{group.name}</h2>
-          <button onClick={onClose} className="rounded px-2 py-1 text-rascal-dim hover:text-white">
+          <button onClick={onClose} className="rounded px-2 py-1 text-rascal-dim hover:text-rascal-text">
             Close
           </button>
         </div>
@@ -103,7 +103,7 @@ export default function GroupInfoModal({
               <button
                 onClick={() => setAdding(true)}
                 disabled={candidates.length === 0}
-                className="w-full rounded-lg border border-dashed border-rascal-line px-3 py-1.5 text-sm text-rascal-dim hover:border-rascal-accent hover:text-white disabled:opacity-40"
+                className="w-full rounded-lg border border-dashed border-rascal-line px-3 py-1.5 text-sm text-rascal-dim hover:border-rascal-accent hover:text-rascal-text disabled:opacity-40"
               >
                 {candidates.length === 0 ? 'All friends already here' : 'Add a friend'}
               </button>
@@ -121,7 +121,7 @@ export default function GroupInfoModal({
                     </button>
                   </div>
                 ))}
-                <button onClick={() => setAdding(false)} className="text-xs text-rascal-dim hover:text-white">
+                <button onClick={() => setAdding(false)} className="text-xs text-rascal-dim hover:text-rascal-text">
                   cancel
                 </button>
               </div>

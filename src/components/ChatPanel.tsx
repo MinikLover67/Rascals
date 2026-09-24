@@ -309,7 +309,7 @@ function PinsStrip({ chatKey, byId }: { chatKey: string; byId: Map<string, ChatM
 
   return (
     <div className="border-b border-rascal-line bg-rascal-panel/60 px-4 py-1.5">
-      <button onClick={() => setOpen((v) => !v)} className="text-xs text-rascal-amber hover:text-white">
+      <button onClick={() => setOpen((v) => !v)} className="text-xs text-rascal-amber hover:text-rascal-text">
         Pinned messages ({alive.length}) {open ? '-' : '+'}
       </button>
       {open && (
@@ -326,7 +326,7 @@ function PinsStrip({ chatKey, byId }: { chatKey: string; byId: Map<string, ChatM
                   onClick={() => {
                     void chatFor(chatKey).sendPin(chatKey, id, false).catch(() => {})
                   }}
-                  className="text-rascal-dim hover:text-white"
+                  className="text-rascal-dim hover:text-rascal-text"
                 >
                   unpin
                 </button>
@@ -374,7 +374,7 @@ function VoiceHeaderButton({ chatKey, isGroup, title }: { chatKey: string; isGro
           }}
           disabled={!!inCallWith}
           data-testid="call-button"
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-white disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-rascal-text disabled:opacity-50"
           title={inCallWith ? 'In call (controls below)' : 'Start a voice call'}
         >
           <Phone size={14} />
@@ -398,7 +398,7 @@ function VoiceHeaderButton({ chatKey, isGroup, title }: { chatKey: string; isGro
             })
           }
         }}
-        className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs hover:bg-white/5 hover:text-white ${joined ? 'text-rascal-green' : 'text-rascal-dim'}`}
+        className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs hover:bg-white/5 hover:text-rascal-text ${joined ? 'text-rascal-green' : 'text-rascal-dim'}`}
         title={joined ? 'Leave voice channel' : 'Join voice channel'}
       >
         <Phone size={14} />
@@ -720,7 +720,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
         {isGroup && (
           <button
             onClick={() => setInfoOpen(true)}
-            className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-white"
+            className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-rascal-text"
             title="Group members"
             aria-label="Group members"
           >
@@ -729,7 +729,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
         )}
         <button
           onClick={() => setSearchOpen((v) => !v)}
-          className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-white"
+          className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-rascal-text"
           title="Search this chat"
           aria-label="Search this chat"
         >
@@ -737,7 +737,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
         </button>
         <button
           onClick={() => setSettingsOpen(true)}
-          className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-white"
+          className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-rascal-text"
           title="Settings"
           aria-label="Settings"
         >
@@ -835,7 +835,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
           <span className="flex-1 truncate text-rascal-text">
             {(replyMsg.body || replyMsg.file?.name || 'attachment').slice(0, 100)}
           </span>
-          <button onClick={() => setReplyTo(null)} title="Cancel reply" aria-label="Cancel reply" className="rounded p-1 text-rascal-dim hover:text-white">
+          <button onClick={() => setReplyTo(null)} title="Cancel reply" aria-label="Cancel reply" className="rounded p-1 text-rascal-dim hover:text-rascal-text">
             <X size={12} />
           </button>
         </div>
@@ -859,7 +859,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
             <button onClick={() => void saveEdit()} className="rounded-lg bg-rascal-accent px-3 py-1.5 text-sm font-semibold text-white">
               Save
             </button>
-            <button onClick={() => setEditing(null)} className="rounded-lg bg-white/5 px-3 py-1.5 text-sm text-rascal-dim hover:text-white">
+            <button onClick={() => setEditing(null)} className="rounded-lg bg-white/5 px-3 py-1.5 text-sm text-rascal-dim hover:text-rascal-text">
               Cancel
             </button>
           </div>
@@ -884,7 +884,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
                   onClick={() => setPending((prev) => prev.filter((_, j) => j !== i))}
                   title="Remove"
                   aria-label={`Remove ${f.name}`}
-                  className="shrink-0 rounded p-0.5 text-rascal-dim hover:bg-white/10 hover:text-white"
+                  className="shrink-0 rounded p-0.5 text-rascal-dim hover:bg-white/10 hover:text-rascal-text"
                 >
                   <X size={12} />
                 </button>
@@ -898,7 +898,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
             onClick={() => fileRef.current?.click()}
             title="Attach files or images (staged until you press Send - E2EE, up to 25 MB)"
             aria-label="Attach files"
-            className="shrink-0 rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-rascal-dim hover:text-white"
+            className="shrink-0 rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-rascal-dim hover:text-rascal-text"
           >
             <Paperclip size={18} />
           </button>
@@ -906,7 +906,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
           <button
             onClick={() => setGifOpen(true)}
             title="Send a GIF via Tenor (needs API key in Settings)"
-            className="shrink-0 rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm text-rascal-dim hover:text-white"
+            className="shrink-0 rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm text-rascal-dim hover:text-rascal-text"
           >
             GIF
           </button>

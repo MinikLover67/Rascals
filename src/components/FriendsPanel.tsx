@@ -215,7 +215,7 @@ export default function FriendsPanel() {
                   </button>
                   <button
                     onClick={() => removeRequest(r.userId)}
-                    className="flex-1 rounded-md bg-white/5 px-2 py-1 text-xs text-rascal-dim hover:text-white"
+                    className="flex-1 rounded-md bg-white/5 px-2 py-1 text-xs text-rascal-dim hover:text-rascal-text"
                   >
                     Decline
                   </button>
@@ -238,7 +238,7 @@ export default function FriendsPanel() {
                   <button
                     onClick={() => retry(r.userId)}
                     disabled={knock[r.userId] === 'busy'}
-                    className="flex-1 rounded-md bg-white/5 px-2 py-1 text-[11px] hover:text-white disabled:opacity-50"
+                    className="flex-1 rounded-md bg-white/5 px-2 py-1 text-[11px] hover:text-rascal-text disabled:opacity-50"
                   >
                     {knock[r.userId] === 'busy'
                       ? 'Knocking…'
@@ -246,7 +246,7 @@ export default function FriendsPanel() {
                         ? 'Knocked ✓'
                         : 'Knock again'}
                   </button>
-                  <button onClick={() => removeRequest(r.userId)} className="flex-1 rounded-md bg-white/5 px-2 py-1 text-[11px] text-rascal-dim hover:text-white">
+                  <button onClick={() => removeRequest(r.userId)} className="flex-1 rounded-md bg-white/5 px-2 py-1 text-[11px] text-rascal-dim hover:text-rascal-text">
                     Cancel
                   </button>
                 </div>
@@ -360,7 +360,7 @@ export default function FriendsPanel() {
                   onClick={() => dropRecent(r.userId)}
                   title="Forget"
                   aria-label="Forget"
-                  className="rounded p-1 text-rascal-dim hover:text-white"
+                  className="rounded p-1 text-rascal-dim hover:text-rascal-text"
                 >
                   <X size={12} />
                 </button>
@@ -378,7 +378,7 @@ export default function FriendsPanel() {
           onClick={() => setSettingsOpen(true)}
           title="Settings (connection, devices, updates)"
           aria-label="Settings"
-          className="rounded-md p-1.5 hover:bg-white/5 hover:text-white"
+          className="rounded-md p-1.5 hover:bg-white/5 hover:text-rascal-text"
         >
           <Settings size={14} />
         </button>
@@ -553,7 +553,7 @@ function AppVersion() {
     <button
       onClick={() => void check()}
       title={note ?? `Rascals v${version} - click to check for updates (an update banner appears up top when one is found)`}
-      className="shrink-0 rounded px-1 font-mono text-[10px] hover:bg-white/5 hover:text-white"
+      className="shrink-0 rounded px-1 font-mono text-[10px] hover:bg-white/5 hover:text-rascal-text"
     >
       {busy ? '...' : note ? `${note.slice(0, 28)}` : `v${version}`}
     </button>

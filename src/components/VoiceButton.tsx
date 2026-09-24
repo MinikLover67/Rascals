@@ -122,7 +122,7 @@ export default function VoiceButton({ chatKey }: { chatKey: string }) {
           disabled={busy}
           title="Record a voice message"
           aria-label="Record a voice message"
-          className="rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-rascal-dim hover:text-white disabled:opacity-40"
+          className="rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-rascal-dim hover:text-rascal-text disabled:opacity-40"
         >
           <Mic size={18} />
         </button>
@@ -138,7 +138,7 @@ export default function VoiceButton({ chatKey }: { chatKey: string }) {
       <button onClick={() => void stop(true)} className="rounded-lg bg-rascal-accent px-2.5 py-1 text-xs font-semibold text-white">
         Send
       </button>
-      <button onClick={cancel} className="rounded-lg bg-white/5 px-2.5 py-1 text-xs text-rascal-dim hover:text-white">
+      <button onClick={cancel} className="rounded-lg bg-white/5 px-2.5 py-1 text-xs text-rascal-dim hover:text-rascal-text">
         Drop
       </button>
     </div>

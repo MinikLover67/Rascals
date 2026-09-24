@@ -48,7 +48,7 @@ export default function ServerSettingsModal({
       >
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold">{server.name} - settings</h2>
-          <button onClick={onClose} className="rounded px-2 py-1 text-rascal-dim hover:text-white">
+          <button onClick={onClose} className="rounded px-2 py-1 text-rascal-dim hover:text-rascal-text">
             Close
           </button>
         </div>
@@ -58,7 +58,7 @@ export default function ServerSettingsModal({
               key={t}
               onClick={() => setTab(t)}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize ${
-                tab === t ? 'bg-rascal-accent text-white' : 'bg-white/5 text-rascal-dim hover:text-white'
+                tab === t ? 'bg-rascal-accent text-white' : 'bg-white/5 text-rascal-dim hover:text-rascal-text'
               }`}
             >
               {t}
@@ -128,7 +128,7 @@ export default function ServerSettingsModal({
                     <button
                       onClick={() => setInviting(true)}
                       disabled={candidates.length === 0}
-                      className="w-full rounded-lg border border-dashed border-rascal-line px-3 py-1.5 text-sm text-rascal-dim hover:border-rascal-accent hover:text-white disabled:opacity-40"
+                      className="w-full rounded-lg border border-dashed border-rascal-line px-3 py-1.5 text-sm text-rascal-dim hover:border-rascal-accent hover:text-rascal-text disabled:opacity-40"
                     >
                       {candidates.length === 0 ? 'All friends already here' : 'Invite a friend'}
                     </button>
@@ -146,7 +146,7 @@ export default function ServerSettingsModal({
                           </button>
                         </div>
                       ))}
-                      <button onClick={() => setInviting(false)} className="mt-1 text-xs text-rascal-dim hover:text-white">
+                      <button onClick={() => setInviting(false)} className="mt-1 text-xs text-rascal-dim hover:text-rascal-text">
                         done
                       </button>
                     </div>
@@ -251,7 +251,7 @@ function ChannelRow({
         </span>
         {canManage && (
           <>
-            <button onClick={() => setEditing(true)} className="rounded px-1.5 text-xs text-rascal-dim hover:text-white">
+            <button onClick={() => setEditing(true)} className="rounded px-1.5 text-xs text-rascal-dim hover:text-rascal-text">
               edit
             </button>
             {deletable && (
@@ -282,7 +282,7 @@ function ChannelRow({
         <button onClick={() => void save()} className="flex-1 rounded-md bg-rascal-accent px-2 py-1 text-xs font-semibold text-white">
           Save
         </button>
-        <button onClick={() => setEditing(false)} className="flex-1 rounded-md bg-white/5 px-2 py-1 text-xs text-rascal-dim hover:text-white">
+        <button onClick={() => setEditing(false)} className="flex-1 rounded-md bg-white/5 px-2 py-1 text-xs text-rascal-dim hover:text-rascal-text">
           Cancel
         </button>
       </div>

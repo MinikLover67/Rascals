@@ -52,7 +52,7 @@ export default function ServerChannels({ serverId }: { serverId: string }) {
           <button
             onClick={() => setSettingsOpen(true)}
             title="Server settings"
-            className="rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-white"
+            className="rounded-md px-2 py-1 text-xs text-rascal-dim hover:bg-white/5 hover:text-rascal-text"
           >
             Settings
           </button>
@@ -110,7 +110,7 @@ export default function ServerChannels({ serverId }: { serverId: string }) {
                 </button>
                 <button
                   onClick={() => setAdding(false)}
-                  className="flex-1 rounded-md bg-white/5 px-2 py-1 text-xs text-rascal-dim hover:text-white"
+                  className="flex-1 rounded-md bg-white/5 px-2 py-1 text-xs text-rascal-dim hover:text-rascal-text"
                 >
                   Cancel
                 </button>
@@ -119,7 +119,7 @@ export default function ServerChannels({ serverId }: { serverId: string }) {
           ) : (
             <button
               onClick={() => setAdding(true)}
-              className="mt-1.5 w-full rounded-lg border border-dashed border-rascal-line px-2 py-1.5 text-xs text-rascal-dim hover:border-rascal-accent hover:text-white"
+              className="mt-1.5 w-full rounded-lg border border-dashed border-rascal-line px-2 py-1.5 text-xs text-rascal-dim hover:border-rascal-accent hover:text-rascal-text"
             >
               + Add channel
             </button>

@@ -39,7 +39,7 @@ export default function CreateServerModal({
       >
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold">New server</h2>
-          <button onClick={onClose} className="rounded px-2 py-1 text-rascal-dim hover:text-white">
+          <button onClick={onClose} className="rounded px-2 py-1 text-rascal-dim hover:text-rascal-text">
             Close
           </button>
         </div>

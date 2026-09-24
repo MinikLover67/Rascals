@@ -22,7 +22,7 @@ export default function GroupsPanel() {
         <button
           onClick={() => setCreating(true)}
           title="Start an encrypted group"
-          className="rounded-md border border-dashed border-rascal-line px-2 py-0.5 text-xs text-rascal-dim hover:border-rascal-accent hover:text-white"
+          className="rounded-md border border-dashed border-rascal-line px-2 py-0.5 text-xs text-rascal-dim hover:border-rascal-accent hover:text-rascal-text"
         >
           + New
         </button>

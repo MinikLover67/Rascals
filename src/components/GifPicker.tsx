@@ -92,7 +92,7 @@ export default function GifPicker({
       >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold">Send a GIF</h2>
-          <button onClick={onClose} className="rounded px-2 py-1 text-rascal-dim hover:text-white">
+          <button onClick={onClose} className="rounded px-2 py-1 text-rascal-dim hover:text-rascal-text">
             Close
           </button>
         </div>

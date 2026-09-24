@@ -89,7 +89,7 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
           <button
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            className="text-xs text-rascal-dim underline underline-offset-2 hover:text-white disabled:opacity-40"
+            className="text-xs text-rascal-dim underline underline-offset-2 hover:text-rascal-text disabled:opacity-40"
           >
             or restore from a backup file
           </button>
@@ -191,7 +191,7 @@ function Rail() {
         onClick={() => selectServer(null)}
         title="Home - friends and groups"
         className={`flex h-11 w-11 items-center justify-center text-lg font-bold ${
-          selectedServer === null ? 'rounded-2xl bg-rascal-accent' : 'rounded-full bg-white/10 text-rascal-dim hover:rounded-2xl hover:text-white'
+          selectedServer === null ? 'rounded-2xl bg-rascal-accent' : 'rounded-full bg-white/10 text-rascal-dim hover:rounded-2xl hover:text-rascal-text'
         } transition-all`}
       >
         R
@@ -205,7 +205,7 @@ function Rail() {
           className={`flex h-11 w-11 items-center justify-center text-sm font-bold ${
             selectedServer === s.id
               ? 'rounded-2xl bg-rascal-accent'
-              : 'rounded-full bg-white/10 text-rascal-dim hover:rounded-2xl hover:text-white'
+              : 'rounded-full bg-white/10 text-rascal-dim hover:rounded-2xl hover:text-rascal-text'
           } transition-all`}
         >
           {s.name.slice(0, 2).toUpperCase()}
@@ -215,7 +215,7 @@ function Rail() {
         onClick={() => setCreating(true)}
         title="Create a server"
         aria-label="Create a server"
-        className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-rascal-line text-rascal-dim transition-[border-radius,color] hover:text-white"
+        className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-rascal-line text-rascal-dim transition-[border-radius,color] hover:text-rascal-text"
       >
         <Plus size={18} />
       </button>
