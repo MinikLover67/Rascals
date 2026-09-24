@@ -110,7 +110,12 @@ export default function ProfileModal({
                 : undefined
           }
         />
-        <div className="px-5 pb-5">
+        <div
+          className="px-5 pb-5"
+          style={{
+            background: `linear-gradient(135deg, ${primary}2e, ${accent}1f), var(--color-rascal-panel)`,
+          }}
+        >
           <div className="-mt-8 mb-2 flex items-end justify-between">
             <span className="rounded-full ring-4 ring-rascal-panel">
               <Avatar url={avatarSrc} name={name} size={64} />
