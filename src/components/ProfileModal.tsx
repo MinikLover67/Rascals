@@ -111,41 +111,41 @@ export default function ProfileModal({
           }
         />
         <div
-          className="px-5 pb-5"
+          className="px-5 pb-5 text-white"
           style={{
-            background: `linear-gradient(135deg, ${primary}2e, ${accent}1f), var(--color-rascal-panel)`,
+            background: `linear-gradient(135deg, ${primary}, ${accent})`,
           }}
         >
           <div className="-mt-8 mb-2 flex items-end justify-between">
-            <span className="rounded-full ring-4 ring-rascal-panel">
+            <span className="rounded-full ring-4 ring-white/40">
               <Avatar url={avatarSrc} name={name} size={64} />
             </span>
             <button
               onClick={onClose}
               title="Close"
               aria-label="Close profile"
-              className="rounded-md p-1.5 text-rascal-dim hover:bg-white/5 hover:text-white"
+              className="rounded-md p-1.5 text-white/70 hover:bg-black/20 hover:text-white"
             >
               <X size={16} />
             </button>
           </div>
           <StyledName name={name} styleId={styleId} className="block truncate text-xl font-bold" />
-          <div className="mt-0.5 truncate font-mono text-[11px] text-rascal-dim" title={userId}>
+          <div className="mt-0.5 truncate font-mono text-[11px] text-white/75" title={userId}>
             {shortUid(userId)}
           </div>
           {self && (
-            <p className="mt-1 text-[10px] text-rascal-dim">
+            <p className="mt-1 text-[10px] text-white/75">
               Profile looks are alpha — still working on them.
             </p>
           )}
           <div className="mt-3 flex items-center gap-2">
             <span
-              className="h-5 w-5 rounded-md border border-white/20"
+              className="h-5 w-5 rounded-md border border-white/40"
               style={{ background: primary }}
               title="Primary theme color"
             />
             <span
-              className="h-5 w-5 rounded-md border border-white/20"
+              className="h-5 w-5 rounded-md border border-white/40"
               style={{ background: accent }}
               title="Accent theme color"
             />
@@ -155,7 +155,7 @@ export default function ProfileModal({
                 onClick={() => void refresh()}
                 disabled={fetching}
                 title="Fetch their latest look (they must be online)"
-                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/15 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-lg bg-black/25 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black/35 disabled:opacity-40"
               >
                 <RefreshCw size={13} className={fetching ? 'animate-spin' : ''} />
                 {fetching ? 'Fetching…' : peer ? 'Refresh' : 'Load profile'}
@@ -164,14 +164,14 @@ export default function ProfileModal({
             {self && onCustomize && (
               <button
                 onClick={onCustomize}
-                className="rounded-lg bg-rascal-accent px-3 py-1.5 text-xs font-semibold text-white"
+                className="rounded-lg bg-black/25 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black/35"
               >
                 Customize
               </button>
             )}
           </div>
           {!self && !peer && !fetching && (
-            <p className="mt-2 text-[11px] text-rascal-dim">
+            <p className="mt-2 text-[11px] text-white/80">
               No cached look yet — they need to be online once so the app can fetch it.
             </p>
           )}

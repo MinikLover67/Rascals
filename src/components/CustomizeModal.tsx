@@ -179,12 +179,12 @@ export default function CustomizeModal({ onClose }: { onClose: () => void }) {
         <div className="mt-3 overflow-hidden rounded-xl border border-rascal-line">
           <div className="h-20 w-full bg-rascal-rail" style={bannerStyle} />
           <div
-            className="flex items-center gap-3 px-3 pb-3"
+            className="flex items-center gap-3 px-3 pb-3 text-white"
             style={{
-              background: `linear-gradient(135deg, ${draft.themePrimary}2e, ${draft.themeAccent}1f), var(--color-rascal-bg)`,
+              background: `linear-gradient(135deg, ${draft.themePrimary}, ${draft.themeAccent})`,
             }}
           >
-            <span className="-mt-5 rounded-full ring-4 ring-rascal-bg">
+            <span className="-mt-5 rounded-full ring-4 ring-white/40">
               <Avatar url={avatarUrl} name={identity?.name ?? '?'} size={48} />
             </span>
             <StyledName
