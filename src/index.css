@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-rascal-bg: #131318;
-  --color-rascal-panel: #1a1b22;
-  --color-rascal-rail: #101014;
-  --color-rascal-line: #26272f;
+  --color-rascal-bg: #08080a;
+  --color-rascal-panel: #101014;
+  --color-rascal-rail: #000000;
+  --color-rascal-line: #232329;
   --color-rascal-text: #e8e9ee;
-  --color-rascal-dim: #9aa0ae;
+  --color-rascal-dim: #9ba1ad;
   --color-rascal-accent: #7c6cff;
   --color-rascal-green: #3ddc84;
   --color-rascal-amber: #ffb224;
@@ -54,6 +54,7 @@ body {
   background: var(--color-rascal-bg);
   color: var(--color-rascal-text);
   font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0.01em;
   overflow: hidden;
 }
 
@@ -81,6 +82,6 @@ body {
   width: 8px;
 }
 .scroll-thin::-webkit-scrollbar-thumb {
-  background: #2e2f3a;
+  background: #33333c;
   border-radius: 4px;
 }

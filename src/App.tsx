@@ -186,7 +186,7 @@ function Rail() {
   const list = Object.values(servers).sort((a, b) => a.createdAt - b.createdAt)
 
   return (
-    <div className="flex w-16 shrink-0 flex-col items-center gap-2 overflow-y-auto bg-rascal-rail py-3 scroll-thin">
+    <div className="flex w-16 shrink-0 flex-col items-center gap-2 overflow-y-auto border-r border-rascal-line bg-rascal-rail py-3 scroll-thin">
       <button
         onClick={() => selectServer(null)}
         title="Home - friends and groups"
