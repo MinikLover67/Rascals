@@ -30,9 +30,13 @@ export function alertIncomingDM(friendId: string, preview: string): void {
     const raw =
       useApp.getState().friends.find((f) => f.userId === friendId)?.displayName ?? 'Someone'
     const name = noteName(raw)
-    void notifyUser(name, preview.slice(0, 140))
+    // One channel only: focused gets the in-app toast, hidden gets the OS
+    // notification (+flash). Both at once reads as a duplicate.
+    if (isHidden()) {
+      void notifyUser(name, preview.slice(0, 140))
+      void flashTaskbar()
+    }
     useApp.getState().pushToast({ title: name, body: preview.slice(0, 140), chatKey: friendId })
-    if (isHidden()) void flashTaskbar()
   }
 }
 
@@ -45,18 +49,22 @@ export function alertIncomingGroup(chatKey: string, senderId: string, preview: s
     const sender =
       s.friends.find((f) => f.userId === senderId)?.displayName ?? 'Someone'
     const title = `${noteName(sender)} in ${groupName}`
-    void notifyUser(title, preview.slice(0, 140))
+    if (isHidden()) {
+      void notifyUser(title, preview.slice(0, 140))
+      void flashTaskbar()
+    }
     s.pushToast({ title, body: preview.slice(0, 140), chatKey })
-    if (isHidden()) void flashTaskbar()
   }
 }
 
 export function alertFriendRequest(displayName: string): void {
   playSound('request')
   const name = noteName(displayName)
-  void notifyUser('New friend request', `${name} wants to connect on Rascals.`)
+  if (isHidden()) {
+    void notifyUser('New friend request', `${name} wants to connect on Rascals.`)
+    void flashTaskbar()
+  }
   useApp.getState().pushToast({ title: 'New friend request', body: `${name} wants to connect.`, chatKey: null })
-  if (isHidden()) void flashTaskbar()
 }
 
 export function alertCallMissed(peerName: string): void {

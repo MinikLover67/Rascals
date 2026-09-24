@@ -167,6 +167,8 @@ export interface Toast {
   body: string
   /** chat to open on click (friend userId or g:groupId), if any */
   chatKey: string | null
+  /** internal: arrival ts for double-fire dedupe */
+  at?: number
 }
 
 interface AppState {
@@ -393,9 +395,17 @@ export const useApp = create<AppState>((set) => ({
   availableUpdate: null,
   toasts: [],
   pushToast: (t) =>
-    set((s) => ({
-      toasts: [...s.toasts.slice(-3), { ...t, id: `${Date.now()}-${Math.random().toString(36).slice(2)}` }],
-    })),
+    set((s) => {
+      // No doubles: same title+body within 3 s (msg + history-offer races).
+      const last = s.toasts[s.toasts.length - 1]
+      const now = Date.now()
+      if (last && last.title === t.title && last.body === t.body && now - (last.at ?? 0) < 3000) {
+        return s
+      }
+      return {
+        toasts: [...s.toasts.slice(-3), { ...t, id: `${now}-${Math.random().toString(36).slice(2)}`, at: now }],
+      }
+    }),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   profile: shapeProfile(load<unknown>(PROFILE_KEY, null)),
   setProfile: (p) =>
