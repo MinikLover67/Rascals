@@ -124,7 +124,14 @@ export default function FriendsPanel() {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-rascal-panel">
       <div className="border-b border-rascal-line p-3">
-        <button onClick={() => setProfileUid(me.userId)} title="View my profile" className="flex w-full items-center gap-2.5 rounded-lg p-1 text-left hover:bg-white/5">
+        <button
+          onClick={() => setProfileUid(me.userId)}
+          title="View my profile"
+          className="flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left text-white brightness-100 hover:brightness-110"
+          style={{
+            background: `linear-gradient(90deg, ${ownProfile.themePrimary}, ${ownProfile.themeAccent})`,
+          }}
+        >
           <Avatar url={ownAvatarUrl} name={me.name} size={36} />
           <span className="min-w-0 flex-1">
             <StyledName
@@ -132,7 +139,7 @@ export default function FriendsPanel() {
               styleId={ownProfile.nameStyle}
               className="block truncate text-sm font-bold"
             />
-            <span className="block truncate font-mono text-[11px] text-rascal-dim" title={me.userId}>
+            <span className="block truncate font-mono text-[11px] text-white/75" title={me.userId}>
               {shortId(me.userId)}
             </span>
           </span>
