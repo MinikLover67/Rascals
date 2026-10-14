@@ -5,7 +5,7 @@
 import { kvDel, kvGet, kvSet } from './idb'
 
 export const AVATAR_MAX_BYTES = 256 * 1024
-export const BANNER_MAX_BYTES = 512 * 1024
+export const BANNER_MAX_BYTES = 5 * 1024 * 1024
 const AVATAR_SIZE = 256
 const BANNER_WIDTH = 960
 
@@ -42,7 +42,8 @@ export interface StoredImage {
 
 /** Validate + store an avatar (PNG/JPG/WEBP downscaled, GIF kept animated). */
 export async function storeAvatar(file: File): Promise<StoredImage> {
-  if (file.type === 'image/gif') {
+  const isGif = file.type === 'image/gif' || /\.gif$/i.test(file.name)
+  if (isGif) {
     if (file.size <= 0 || file.size > 2 * 1024 * 1024) {
       throw new Error('GIF avatars must be under 2 MB.')
     }
@@ -62,9 +63,10 @@ export async function storeAvatar(file: File): Promise<StoredImage> {
 
 /** Validate + store a banner (GIF kept animated, statics fit 960px wide). */
 export async function storeBanner(file: File): Promise<StoredImage> {
-  if (file.type === 'image/gif') {
-    if (file.size <= 0 || file.size > 3 * 1024 * 1024) {
-      throw new Error('GIF banners must be under 3 MB.')
+  const isGif = file.type === 'image/gif' || /\.gif$/i.test(file.name)
+  if (isGif) {
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      throw new Error('GIF banners must be under 5 MB.')
     }
     const id = `bn-${Date.now().toString(36)}`
     await kvSet(`prof:banner:${id}`, file)
@@ -175,4 +177,13 @@ export async function savePeerBlob(userId: string, kind: 'avatar' | 'banner', bl
 
 export async function loadPeerBlob(userId: string, kind: 'avatar' | 'banner'): Promise<Blob | null> {
   return kvGet(`prof:peer:${userId}:${kind}`)
+}
+
+/** Drop a cached peer image (their latest show no longer carries it). */
+export async function dropPeerBlob(userId: string, kind: 'avatar' | 'banner'): Promise<void> {
+  try {
+    await kvDel(`prof:peer:${userId}:${kind}`)
+  } catch {
+    // cache is garnish
+  }
 }

@@ -38,7 +38,7 @@ export interface MsgContent {
 
 const HISTORY_LIMIT = 200
 export const CHUNK_BYTES = 32 * 1024
-export const MAX_FILE_BYTES = 25 * 1024 * 1024
+export const MAX_FILE_BYTES = 100 * 1024 * 1024
 const MAX_REACTIONS_OFFER = 500
 /** Chunks sealed concurrently per batch: prep runs in parallel, sends stay ordered. */
 export const CHUNK_SEAL_AHEAD = 8
@@ -218,6 +218,8 @@ export interface ChatApi {
   ) => void
   /** Flush queued messages + ask for anything missed while offline. */
   peerBecameAvailable: (friendId: string) => Promise<void>
+  /** Push our current look to every online friend (call after editing it). */
+  broadcastOwnProfile: () => Promise<void>
 }
 
 let inviteHandler: ((from: string, invite: AnyInvitePayload) => void) | null = null
@@ -362,6 +364,21 @@ export function bindChat(
 
   // In-memory chunk assembly: fileId -> seq -> base64 plaintext bytes.
   const incoming = new Map<string, { friendId: string; parts: Map<number, string> }>()
+
+  // Profile-image chunk assembly: `${from}:${kind}:${rev}` -> batches.
+  const profImgIncoming = new Map<
+    string,
+    { mime: string; total: number; rev: number; parts: Map<number, string> }
+  >()
+
+  /** Drop streams a newer show superseded (sender saved again mid-stream). */
+  function dropStaleProfileStreams(from: string, rev: number): void {
+    for (const key of [...profImgIncoming.keys()]) {
+      if (!key.startsWith(`${from}:`)) continue
+      const entry = profImgIncoming.get(key)
+      if (entry && entry.rev < rev) profImgIncoming.delete(key)
+    }
+  }
 
   function findFileMessage(friendId: string, fileId: string): ChatMessage | undefined {
     return (useApp.getState().messages[friendId] ?? []).find((m) => m.file?.id === fileId)
@@ -581,10 +598,85 @@ export function bindChat(
       // They opened our profile: answer with our look (best effort).
       void sendPeerProfile(from).catch(() => {})
     },
+    onProfileImg: (from, msg) => {
+      void (async () => {
+        try {
+          if (msg.total < 1 || msg.total > PROF_IMG_MAX_CHUNKS) return
+          if (msg.count < 1 || msg.count > PROF_IMG_BATCH) return
+          if (msg.baseSeq < 0 || msg.baseSeq + msg.count > msg.total) return
+          if (!msg.mime.startsWith('image/') || msg.mime.length > 64) return
+          if (msg.box.length > 262144) return
+          const key = await keyFor(from)
+          const plain = await openBox(key, msg.nonce, msg.box)
+          if (!plain) return
+          let raw: Uint8Array
+          try {
+            const bin = atob(plain)
+            if (bin.length <= 0 || bin.length > PROF_IMG_BATCH * CHUNK_BYTES) return
+            raw = new Uint8Array(bin.length)
+            for (let i = 0; i < bin.length; i++) raw[i] = bin.charCodeAt(i)
+          } catch {
+            return
+          }
+          const streamKey = `${from}:${msg.kind}:${msg.rev}`
+          let entry = profImgIncoming.get(streamKey)
+          if (!entry) {
+            entry = { mime: msg.mime.slice(0, 64), total: msg.total, rev: msg.rev, parts: new Map() }
+            profImgIncoming.set(streamKey, entry)
+          }
+          if (entry.total !== msg.total) return
+          for (let i = 0; i < msg.count; i++) {
+            const seq = msg.baseSeq + i
+            if (entry.parts.has(seq)) continue
+            const piece = raw.subarray(i * CHUNK_BYTES, (i + 1) * CHUNK_BYTES)
+            if (piece.length === 0) continue
+            entry.parts.set(seq, bytesToB64(piece))
+          }
+          if (entry.parts.size < entry.total) return
+          // Complete: assemble, attach to their cached profile, notify views.
+          const ordered: string[] = []
+          for (let i = 0; i < entry.total; i++) {
+            const part = entry.parts.get(i)
+            if (part === undefined) return
+            ordered.push(part)
+          }
+          profImgIncoming.delete(streamKey)
+          const mod = await import('./profile')
+          const cached = await mod.loadPeerProfile(from).catch(() => null)
+          if (cached && cached.at > entry.rev) return // superseded mid-stream
+          const blob = await assembleBlob(ordered, entry.mime).catch(() => null)
+          if (!blob || blob.size <= 0 || blob.size > PROF_MAX_BYTES) return
+          await mod.savePeerBlob(from, msg.kind, blob)
+          const next = {
+            themePrimary: cached?.themePrimary ?? '#7c6cff',
+            themeAccent: cached?.themeAccent ?? '#3ddc84',
+            nameStyle: cached?.nameStyle ?? 'default',
+            avatarMime: msg.kind === 'avatar' ? entry.mime : (cached?.avatarMime ?? null),
+            bannerMime: msg.kind === 'banner' ? entry.mime : (cached?.bannerMime ?? null),
+            bannerCss: cached?.bannerCss ?? null,
+            // Versioned streams keep the sender's rev; otherwise stamp now.
+            at: entry.rev > 0 ? Math.max(entry.rev, cached?.at ?? 0) : Date.now(),
+          }
+          await mod.savePeerProfile(from, next)
+          useApp.getState().bumpPeerProfileTick()
+        } catch {
+          // corrupt chunk — the stream stays incomplete until re-sent
+        }
+      })()
+    },
     onProfileShow: (from, msg) => {
       void (async () => {
         try {
           const mod = await import('./profile')
+          // Stale/duplicate replay? The sender versions every save, so an
+          // older VERSIONED show arriving late must not overwrite the cached
+          // newer look. Unversioned shows (older builds) carry no rev — a
+          // freshly-decrypted arrival is live data, always accept it.
+          const rev = typeof msg.rev === 'number' && Number.isFinite(msg.rev) ? msg.rev : 0
+          const cached = await mod.loadPeerProfile(from).catch(() => null)
+          if (cached && rev > 0 && rev <= cached.at) return
+          // A newer show supersedes any chunk stream still assembling.
+          dropStaleProfileStreams(from, rev)
           const hex = (v: unknown, fb: string): string =>
             typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v : fb
           const key = await keyFor(from)
@@ -613,19 +705,45 @@ export function bindChat(
             openImage(msg.avatarMime, msg.avatarNonce, msg.avatarBox, 384 * 1024),
             openImage(msg.bannerMime, msg.bannerNonce, msg.bannerBox, 768 * 1024),
           ])
+          // Large images ride as 'pimg' chunks AFTER this descriptor: keep the
+          // old bytes until they land (never blank the avatar on a pending
+          // stream), and only clear when the sender truly removed the image.
+          const pending = (
+            mime: unknown,
+            size: unknown,
+          ): string | null => {
+            if (typeof mime !== 'string' || !mime.startsWith('image/')) return null
+            if (typeof size !== 'number' || !Number.isFinite(size)) return null
+            if (size <= PROF_INLINE_BYTES || size > PROF_MAX_BYTES) return null
+            return mime.slice(0, 64)
+          }
+          const avatarPending = !avatarBlob ? pending(msg.avatarMime, msg.avatarSize) : null
+          const bannerPending = !bannerBlob ? pending(msg.bannerMime, msg.bannerSize) : null
+          // Unversioned senders (older builds) OMIT images they couldn't fit —
+          // that is not a removal. Only a versioned show explicitly without an
+          // image means "removed", so unversioned gaps keep the cached look.
+          const unversioned = rev === 0
           const profile = {
             themePrimary: hex(msg.themePrimary, '#7c6cff'),
             themeAccent: hex(msg.themeAccent, '#3ddc84'),
             nameStyle: typeof msg.nameStyle === 'string' ? msg.nameStyle.slice(0, 32) : 'default',
-            avatarMime: avatarBlob?.type ?? null,
-            bannerMime: bannerBlob?.type ?? null,
+            avatarMime: avatarBlob?.type ?? avatarPending ?? (unversioned ? (cached?.avatarMime ?? null) : null),
+            bannerMime: bannerBlob?.type ?? bannerPending ?? (unversioned ? (cached?.bannerMime ?? null) : null),
             bannerCss:
-              typeof msg.bannerCss === 'string' && !bannerBlob ? msg.bannerCss.slice(0, 200) : null,
-            at: Date.now(),
+              typeof msg.bannerCss === 'string' && !bannerBlob
+                ? msg.bannerCss.slice(0, 200)
+                : unversioned
+                  ? (cached?.bannerCss ?? null)
+                  : null,
+            // Version the cache with the sender's rev so late duplicates lose.
+            at: rev > 0 ? rev : Date.now(),
           }
           if (avatarBlob) await mod.savePeerBlob(from, 'avatar', avatarBlob)
+          else if (!avatarPending && !unversioned && cached?.avatarMime) await mod.dropPeerBlob(from, 'avatar')
           if (bannerBlob) await mod.savePeerBlob(from, 'banner', bannerBlob)
+          else if (!bannerPending && !unversioned && cached?.bannerMime) await mod.dropPeerBlob(from, 'banner')
           await mod.savePeerProfile(from, profile)
+          useApp.getState().bumpPeerProfileTick()
         } catch {
           // corrupt profile — keep the cache we have
         }
@@ -950,28 +1068,116 @@ export function bindChat(
     }
   }
 
+  // Profile images bigger than one sealed box (GIF avatars/banners) ride as
+  // 'pimg' chunk batches: 4×32 KB plaintext per message, same sizing as file
+  // transfers, so every message stays under the ~256 KB SCTP ceiling.
+  // ≤96 KB goes inline in profshow (old clients still render those).
+  const PROF_INLINE_BYTES = 96 * 1024
+  const PROF_MAX_BYTES = 5 * 1024 * 1024
+  const PROF_IMG_BATCH = 4
+  const PROF_IMG_MAX_CHUNKS = 256
+
+  async function streamProfileImage(
+    friendId: string,
+    kind: 'avatar' | 'banner',
+    rev: number,
+    blob: Blob,
+  ): Promise<void> {
+    const inst = p2p()
+    if (!inst) return
+    const key = await keyFor(friendId)
+    const bytes = new Uint8Array(await blob.arrayBuffer())
+    const total = Math.max(1, Math.ceil(bytes.length / CHUNK_BYTES))
+    const mime = blob.type || 'application/octet-stream'
+    for (let s = 0; s < total; s += PROF_IMG_BATCH) {
+      if (inst.peerCount(friendId) === 0) break
+      const count = Math.min(PROF_IMG_BATCH, total - s)
+      const slice = bytes.subarray(s * CHUNK_BYTES, (s + count) * CHUNK_BYTES)
+      const { nonce, box } = await seal(key, bytesToB64(slice))
+      await inst
+        .sendAction(friendId, 'pimg', {
+          v: 1,
+          to: friendId,
+          from: me,
+          kind,
+          rev,
+          mime,
+          total,
+          baseSeq: s,
+          count,
+          nonce,
+          box,
+        })
+        .catch(() => {})
+    }
+  }
+
   async function sendPeerProfile(friendId: string): Promise<void> {
     const inst = p2p()
     if (!inst || inst.peerCount(friendId) === 0) return
     const p = useApp.getState().profile
+    const rev = p.updatedAt ?? 0
     const bannerRef = p.banner?.kind === 'image' ? p.banner : null
-    const [avatar, banner] = await Promise.all([
-      p.avatar ? sealProfileImage(friendId, () => loadProfileBlob('avatar', p.avatar), 384 * 1024) : null,
-      bannerRef ? sealProfileImage(friendId, () => loadProfileBlob('banner', bannerRef), 768 * 1024) : null,
+    const [avatarBlob, bannerBlob] = await Promise.all([
+      p.avatar ? loadProfileBlob('avatar', p.avatar).catch(() => null) : null,
+      bannerRef ? loadProfileBlob('banner', bannerRef).catch(() => null) : null,
     ])
+    // Small images inline; large ones as chunked follow-ups (descriptor here).
+    const avatarInline =
+      avatarBlob && avatarBlob.size > 0 && avatarBlob.size <= PROF_INLINE_BYTES
+        ? await sealProfileImage(friendId, async () => avatarBlob, PROF_INLINE_BYTES).catch(() => null)
+        : null
+    const bannerInline =
+      bannerBlob && bannerBlob.size > 0 && bannerBlob.size <= PROF_INLINE_BYTES
+        ? await sealProfileImage(friendId, async () => bannerBlob, PROF_INLINE_BYTES).catch(() => null)
+        : null
+    const avatarChunked =
+      !avatarInline && avatarBlob && avatarBlob.size > PROF_INLINE_BYTES && avatarBlob.size <= PROF_MAX_BYTES
+        ? avatarBlob
+        : null
+    const bannerChunked =
+      !bannerInline && bannerBlob && bannerBlob.size > PROF_INLINE_BYTES && bannerBlob.size <= PROF_MAX_BYTES
+        ? bannerBlob
+        : null
     await inst
       .sendAction(friendId, 'profshow', {
         v: 1,
         to: friendId,
         from: me,
+        rev,
         themePrimary: p.themePrimary,
         themeAccent: p.themeAccent,
         nameStyle: p.nameStyle,
-        ...(avatar ? { avatarMime: avatar.mime, avatarNonce: avatar.nonce, avatarBox: avatar.box } : {}),
-        ...(banner ? { bannerMime: banner.mime, bannerNonce: banner.nonce, bannerBox: banner.box } : {}),
+        ...(avatarInline
+          ? { avatarMime: avatarInline.mime, avatarNonce: avatarInline.nonce, avatarBox: avatarInline.box }
+          : avatarChunked
+            ? { avatarMime: avatarChunked.type || 'application/octet-stream', avatarSize: avatarChunked.size }
+            : {}),
+        ...(bannerInline
+          ? { bannerMime: bannerInline.mime, bannerNonce: bannerInline.nonce, bannerBox: bannerInline.box }
+          : bannerChunked
+            ? { bannerMime: bannerChunked.type || 'application/octet-stream', bannerSize: bannerChunked.size }
+            : {}),
         ...(p.banner?.kind === 'gradient' ? { bannerCss: p.banner.value } : {}),
       })
       .catch(() => {})
+    // Chunks after the descriptor so the receiver knows to expect them.
+    // Skip the stream when the peer is known-old (fv<3 ignores 'pimg');
+    // unknown (no hello yet) still gets it — hellos usually land first.
+    const peerProto = inst.peerFileVersionOf(friendId)
+    const canChunk = peerProto === 0 || peerProto >= 3
+    if (avatarChunked && canChunk) await streamProfileImage(friendId, 'avatar', rev, avatarChunked).catch(() => {})
+    if (bannerChunked && canChunk) await streamProfileImage(friendId, 'banner', rev, bannerChunked).catch(() => {})
+  }
+
+  /** Push our current look to every online friend (fire-and-forget).
+   * Called after editing our profile and when a peer returns, so their
+   * cache updates without them having to hit Refresh. */
+  async function broadcastOwnProfile(): Promise<void> {
+    const inst = p2p()
+    if (!inst) return
+    const friends = useApp.getState().friends
+    await Promise.all(friends.map((f) => sendPeerProfile(f.userId).catch(() => {})))
   }
   async function sendTyping(friendId: string, typing: boolean): Promise<void> {
     const inst = p2p()
@@ -992,6 +1198,9 @@ export function bindChat(
 
   async function peerBecameAvailable(friendId: string): Promise<void> {
     const s = useApp.getState()
+    // They just came online — push our look so their cache is current
+    // without them having to Refresh, then do the usual catch-up.
+    await sendPeerProfile(friendId).catch(() => {})
     const queued = (s.messages[friendId] ?? []).filter(
       (m) => m.mine && m.status === 'queued',
     )
@@ -1075,5 +1284,6 @@ export function bindChat(
     sendCall,
     onCallSignal,
     peerBecameAvailable,
+    broadcastOwnProfile,
   }
 }

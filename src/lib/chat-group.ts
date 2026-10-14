@@ -1018,6 +1018,7 @@ export function bindGroupChat(
 
   async function sendInvite(to: string, g: GroupInfo): Promise<boolean> {
     try {
+      await p2p()?.ensureDmRoom(to).catch(() => {})
       return await deps.sendDmCtrl(to, await invitePayload(g))
     } catch {
       return false
@@ -1061,6 +1062,14 @@ export function bindGroupChat(
       }
     }
     // Announce our chain to everyone, then pull history.
+    try {
+      useApp.getState().pushToast({
+        title: 'Group invitation',
+        body: `You were invited to ${grp.name}.`,
+        chatKey: groupChatKey(grp.id),
+        at: Date.now(),
+      })
+    } catch {}
     const updated = groupOf(grp.id)
     if (updated) await broadcastMyKey(grp.id, updated.members).catch(() => {})
     await requestGroupHistory(grp.id).catch(() => {})
@@ -1131,6 +1140,7 @@ export function bindGroupChat(
   }
 
   async function leaveGroupLocal(groupId: string): Promise<void> {
+    if (useApp.getState().selectedGroup === groupId) useApp.getState().selectGroup(null)
     useApp.getState().removeGroup(groupId)
     useApp.getState().dropGroupKeys(groupId)
     myChains.delete(groupId)

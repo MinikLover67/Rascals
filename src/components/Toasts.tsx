@@ -35,7 +35,10 @@ export default function Toasts() {
   if (toasts.length === 0) return null
 
   function open(t: (typeof toasts)[number]) {
-    dismissToast(t.id)
+    // Clear every queued notification for this person/chat, not just the
+    // one that was clicked.
+    const same = t.chatKey ? toasts.filter((x) => x.chatKey === t.chatKey) : [t]
+    for (const x of same) dismissToast(x.id)
     if (!t.chatKey) return
     if (t.chatKey.startsWith('g:')) selectGroup(t.chatKey.slice(2))
     else selectFriend(t.chatKey)

@@ -153,13 +153,20 @@ export async function startSession(identity: Identity): Promise<void> {
       onFriendRequest: (userId, displayName) => {
         // Peer-controlled: shape before it touches state or notifications.
         const name = shapeDisplayName(displayName) || shortUid(userId)
-        useApp.getState().upsertRequest({
+        const s = useApp.getState()
+        // One knock, one notification: the sender re-knocks every minute
+        // plus a targeted + broadcast pair ~5 s apart, so an already-known
+        // request only refreshes silently (no new toast/sound). Knocks from
+        // existing friends are just presence noise — ignore them.
+        if (s.friends.some((f) => f.userId === userId)) return
+        const known = s.requests.some((r) => r.userId === userId && r.direction === 'in')
+        s.upsertRequest({
           userId,
           displayName: name,
           direction: 'in',
           ts: Date.now(),
         })
-        alertFriendRequest(name)
+        if (!known) alertFriendRequest(name)
       },
       onHello: (userId, displayName) => {
         const s = useApp.getState()
@@ -244,7 +251,7 @@ export async function startSession(identity: Identity): Promise<void> {
       for (const f of st.friends) {
         if (!f.online) continue
         if ((inst?.peerFileVersionOf(f.userId) ?? 0) < 2) continue
-        if (now - (lastSeen.get(f.userId) ?? 0) > 90000) st.setOnline(f.userId, false)
+        if (now - (lastSeen.get(f.userId) ?? 0) > 180000) st.setOnline(f.userId, false)
       }
       maybeWedgeHeal(120000)
       // Lobby request listening dies silently too (sleep/flaps) — rejoin on
@@ -329,6 +336,12 @@ export async function resetConnection(): Promise<string> {
 /** Ask a friend for their profile look (avatar/banner/theme/name style). */
 export async function requestPeerProfile(userId: string): Promise<void> {
   await getChat()?.requestPeerProfile(userId).catch(() => {})
+}
+
+/** Push our current profile look to every online friend.
+ * Call after editing it so their caches update without a manual Refresh. */
+export async function broadcastOwnProfile(): Promise<void> {
+  await getChat()?.broadcastOwnProfile().catch(() => {})
 }
 
 /** Accept an incoming request: befriend + join pairwise room (hellos do the rest). */

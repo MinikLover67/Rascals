@@ -57,6 +57,10 @@ export function bindVoice(deps: VoiceDeps) {
   let audioCtx: AudioContext | null = null
   const analysers = new Map<string, { analyser: AnalyserNode; data: Uint8Array }>()
   const remoteAudio = new Map<string, HTMLAudioElement>()
+  /** System-audio elements for screen shares (separate from mic audio). */
+  const remoteScreenAudio = new Map<string, HTMLAudioElement>()
+  /** Receiver-side screen streams by peer (routes screen audio correctly). */
+  const screenStreams = new Map<string, MediaStream>()
   const remoteVideos = new Map<string, { userId: string; name: string; stream: MediaStream }>()
   let videoTick = 0
   let speakTimer: number | null = null
@@ -66,6 +70,11 @@ export function bindVoice(deps: VoiceDeps) {
   function bumpVideos(): void {
     videoTick += 1
     void videoTick
+    try {
+      useApp.getState().bumpVideosRev()
+    } catch {
+      // store not ready (teardown races) — pollers cover it
+    }
   }
 
   function myId(): string {
@@ -221,8 +230,41 @@ export function bindVoice(deps: VoiceDeps) {
       el.remove()
       remoteAudio.delete(peerId)
     }
+    dropScreenAudio(peerId)
+    screenStreams.delete(peerId)
     analysers.delete(peerId)
     if (remoteVideos.delete(peerId)) bumpVideos()
+  }
+
+  function dropScreenAudio(peerId: string): void {
+    const el = remoteScreenAudio.get(peerId)
+    if (el) {
+      el.srcObject = null
+      el.remove()
+      remoteScreenAudio.delete(peerId)
+    }
+  }
+
+  /** Screen-share system audio gets its own element (never the mic one). */
+  function attachScreenAudio(peerId: string, stream: MediaStream): void {
+    try {
+      let el = remoteScreenAudio.get(peerId)
+      if (!el) {
+        el = document.createElement('audio')
+        el.autoplay = true
+        document.body.appendChild(el)
+        remoteScreenAudio.set(peerId, el)
+      }
+      if (el.srcObject !== stream) el.srcObject = stream
+      const speakerId = useApp.getState().settings.speakerId
+      const withSink = el as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }
+      if (speakerId && typeof withSink.setSinkId === 'function') {
+        withSink.setSinkId(speakerId).catch(() => {})
+      }
+      el.muted = useApp.getState().voice.deafened
+    } catch {
+      // audio playback unavailable
+    }
   }
 
   function notePeer(peerId: string, userId: string, name: string): void {
@@ -271,7 +313,7 @@ export function bindVoice(deps: VoiceDeps) {
           }
         }
         if (screenStream) {
-          for (const track of screenStream.getVideoTracks()) {
+          for (const track of screenStream.getTracks()) {
             try {
               const proms = r.addTrack(track, screenStream, { target: peerId })
               void Promise.all(proms.map((p) => p.catch(() => {})))
@@ -299,18 +341,45 @@ export function bindVoice(deps: VoiceDeps) {
         else notePeer(peerId, peerId, 'Connecting...')
       }
       r.onPeerTrack = (track: MediaStreamTrack, stream: MediaStream, peerId: string) => {
-        if (track.kind !== 'video') return
-        const known = peerNames.get(peerId)
-        remoteVideos.set(peerId, {
-          userId: known?.userId ?? peerId,
-          name: known?.name ?? 'Someone',
-          stream,
-        })
-        bumpVideos()
-        const parts = getParts().map((p) =>
-          p.peerId === peerId ? { ...p, sharing: true } : p,
-        )
-        setParts(parts)
+        if (track.kind === 'video') {
+          const known = peerNames.get(peerId)
+          screenStreams.set(peerId, stream)
+          remoteVideos.set(peerId, {
+            userId: known?.userId ?? peerId,
+            name: known?.name ?? 'Someone',
+            stream,
+          })
+          bumpVideos()
+          const parts = getParts().map((p) =>
+            p.peerId === peerId ? { ...p, sharing: true } : p,
+          )
+          setParts(parts)
+          // The sender removing the track fires no Trystero event — watch
+          // the track/stream directly or the tile freezes here forever.
+          let cleaned = false
+          const cleanup = () => {
+            if (cleaned) return
+            cleaned = true
+            if (screenStreams.get(peerId) === stream) screenStreams.delete(peerId)
+            dropScreenAudio(peerId)
+            if (remoteVideos.delete(peerId)) bumpVideos()
+            setParts(
+              getParts().map((p) => (p.peerId === peerId ? { ...p, sharing: false } : p)),
+            )
+          }
+          try {
+            track.addEventListener('ended', cleanup)
+            stream.addEventListener('removetrack', () => {
+              if (stream.getVideoTracks().length === 0) cleanup()
+            })
+          } catch {
+            // events unavailable — peer-leave still cleans up
+          }
+          return
+        }
+        if (track.kind === 'audio' && screenStreams.get(peerId) === stream) {
+          attachScreenAudio(peerId, stream)
+        }
       }
       return null
     } catch (e) {
@@ -351,6 +420,8 @@ export function bindVoice(deps: VoiceDeps) {
       screenStream = null
     }
     for (const peerId of [...remoteAudio.keys()]) detachRemote(peerId)
+    for (const peerId of [...remoteScreenAudio.keys()]) dropScreenAudio(peerId)
+    screenStreams.clear()
     analysers.clear()
     remoteVideos.clear()
     peerNames.clear()
@@ -553,15 +624,18 @@ export function bindVoice(deps: VoiceDeps) {
   function setDeafened(d: boolean): void {
     useApp.getState().setVoice({ deafened: d })
     for (const el of remoteAudio.values()) el.muted = d
+    for (const el of remoteScreenAudio.values()) el.muted = d
   }
 
   function setSpeaker(id: string): void {
-    for (const el of remoteAudio.values()) {
+    const apply = (el: HTMLAudioElement) => {
       const withSink = el as HTMLAudioElement & { setSinkId?: (x: string) => Promise<void> }
       if (typeof withSink.setSinkId === 'function' && id) {
         withSink.setSinkId(id).catch(() => {})
       }
     }
+    for (const el of remoteAudio.values()) apply(el)
+    for (const el of remoteScreenAudio.values()) apply(el)
   }
 
   async function startShare(): Promise<string | null> {
@@ -573,27 +647,33 @@ export function bindVoice(deps: VoiceDeps) {
         getDisplayMedia?: (opts?: DisplayMediaStreamOptions) => Promise<MediaStream>
       }
       if (!dm.getDisplayMedia) return 'Screen sharing is not supported here.'
-      stream = await dm.getDisplayMedia({ video: true, audio: false })
+      // audio:true = include system audio when the picker offers it (video
+      // sites, games). Absence is fine — video-only share still works.
+      stream = await dm.getDisplayMedia({ video: true, audio: true })
     } catch {
       return 'Screen share was cancelled or unavailable.'
     }
-    const track = stream.getVideoTracks()[0]
-    if (!track) {
+    const tracks = stream.getTracks()
+    if (tracks.length === 0) {
       stream.getTracks().forEach((t) => t.stop())
-      return 'No video track.'
+      return 'No tracks.'
     }
     try {
-      const proms = room.addTrack(track, stream)
+      const proms = tracks.flatMap((t) => room!.addTrack(t, stream))
       await Promise.all(proms.map((p) => p.catch(() => {})))
     } catch (e) {
       stream.getTracks().forEach((t) => t.stop())
       return e instanceof Error ? e.message : 'Could not share.'
     }
     screenStream = stream
-    track.onended = () => {
-      void stopShare()
+    const video = stream.getVideoTracks()[0]
+    if (video) {
+      video.onended = () => {
+        void stopShare()
+      }
     }
     useApp.getState().setVoice({ sharing: true })
+    bumpVideos()
     await broadcastState()
     return null
   }
@@ -601,10 +681,10 @@ export function bindVoice(deps: VoiceDeps) {
   async function stopShare(): Promise<void> {
     if (!room || !screenStream) {
       useApp.getState().setVoice({ sharing: false })
+      bumpVideos()
       return
     }
-    const track = screenStream.getVideoTracks()[0]
-    if (track) {
+    for (const track of screenStream.getTracks()) {
       try {
         room.removeTrack(track)
       } catch {
@@ -620,6 +700,7 @@ export function bindVoice(deps: VoiceDeps) {
     })
     screenStream = null
     useApp.getState().setVoice({ sharing: false })
+    bumpVideos()
     await broadcastState()
   }
 
@@ -678,6 +759,11 @@ export function bindVoice(deps: VoiceDeps) {
     return out
   }
 
+  /** Our own outgoing screen stream (for the local preview tile). */
+  function getLocalScreen(): MediaStream | null {
+    return screenStream
+  }
+
   function teardown(): void {
     clearRingTimer()
     leaveRoomOnly()
@@ -699,6 +785,7 @@ export function bindVoice(deps: VoiceDeps) {
     stopShare,
     handleSignal,
     getRemoteVideos,
+    getLocalScreen,
     teardown,
   }
 }

@@ -256,37 +256,14 @@ function Bubble({
           {m.editedAt && <span>(edited)</span>}
           <Ticks m={m} />
           {!m.sys && (
-          <span className="hidden gap-1 group-hover:flex">
-            <button onClick={() => onReply(m)} title="Reply" aria-label="Reply" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">
-              <Reply size={14} />
-            </button>
-            <button onClick={() => setPicking((v) => !v)} title="React" aria-label="React" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">
-              <SmilePlus size={14} />
-            </button>
-            <button onClick={() => void copyMessage()} title="Copy message" aria-label="Copy message" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-            </button>
-            <button
-              onClick={() => {
-                void chatFor(chatKey).sendPin(chatKey, m.id, !pinned).catch(() => {})
-              }}
-              title={pinned ? 'Unpin' : 'Pin'}
-              aria-label={pinned ? 'Unpin' : 'Pin'}
-              className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent"
-            >
-              {pinned ? <PinOff size={14} /> : <Pin size={14} />}
-            </button>
-            {m.mine && !m.file && !m.sys && (
-              <button onClick={() => onEdit(m)} title="Edit" aria-label="Edit" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">
-                <Pencil size={14} />
-              </button>
-            )}
-            {m.mine && !m.sys && (
-              <button onClick={() => onDelete(m)} title="Delete" aria-label="Delete" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">
-                <Trash2 size={14} />
-              </button>
-            )}
-          </span>
+            <span className="hidden gap-1 group-hover:flex">
+              <button onClick={() => onReply(m)} title="Reply" aria-label="Reply" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent"><Reply size={14} /></button>
+              <button onClick={() => setPicking((v) => !v)} title="React" aria-label="React" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent"><SmilePlus size={14} /></button>
+              <button onClick={() => void copyMessage()} title="Copy message" aria-label="Copy message" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">{copied ? <Check size={14} /> : <Copy size={14} />}</button>
+              <button onClick={() => { void chatFor(chatKey).sendPin(chatKey, m.id, !pinned).catch(() => {}) }} title={pinned ? 'Unpin' : 'Pin'} aria-label={pinned ? 'Unpin' : 'Pin'} className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent">{pinned ? <PinOff size={14} /> : <Pin size={14} />}</button>
+              {m.mine && !m.file && !m.sys && <button onClick={() => onEdit(m)} title="Edit" aria-label="Edit" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent"><Pencil size={14} /></button>}
+              {m.mine && !m.sys && <button onClick={() => onDelete(m)} title="Delete" aria-label="Delete" className="rounded p-1 hover:bg-white/10 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-rascal-accent"><Trash2 size={14} /></button>}
+            </span>
           )}
         </div>
       </div>
@@ -512,16 +489,32 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
   // Auto-scroll to bottom on new messages (if already near bottom).
   const stick = useRef(true)
   const [stuck, setStuck] = useState(true)
+  const lastSeenTs = useRef(messages[messages.length - 1]?.ts ?? 0)
+  const [newCount, setNewCount] = useState(0)
   function scrollToBottom() {
     const el = listRef.current
     if (!el) return
     el.scrollTop = el.scrollHeight
     stick.current = true
     setStuck(true)
+    const latest = messages[messages.length - 1]?.ts ?? 0
+    lastSeenTs.current = latest
+    setNewCount(0)
+    markReadNow(chatKey)
   }
   useEffect(() => {
     const el = listRef.current
-    if (el && stick.current) el.scrollTop = el.scrollHeight
+    if (stick.current) {
+      if (el) el.scrollTop = el.scrollHeight
+      const latest = messages[messages.length - 1]?.ts ?? 0
+      lastSeenTs.current = latest
+      setNewCount(0)
+      markReadNow(chatKey)
+    } else {
+      const n = messages.filter((m) => m.ts > lastSeenTs.current).length
+      setNewCount(n)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length])
 
   useEffect(
@@ -578,7 +571,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
           break
         }
         if (f.size > MAX_FILE_BYTES) {
-          setFileErr(`${f.name}: files are capped at 25 MB for now.`)
+          setFileErr(`${f.name}: files are capped at 100 MB for now.`)
           break
         }
         staged.push(f)
@@ -771,6 +764,12 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
           const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
           stick.current = nearBottom
           setStuck(nearBottom)
+          if (nearBottom) {
+            const latest = messages[messages.length - 1]?.ts ?? 0
+            lastSeenTs.current = latest
+            setNewCount(0)
+            markReadNow(chatKey)
+          }
         }}
         className="absolute inset-0 space-y-2 overflow-y-auto p-4 scroll-thin"
       >
@@ -824,7 +823,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
           onClick={scrollToBottom}
           className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-rascal-accent px-3 py-1 text-xs font-semibold text-white shadow-xl"
         >
-          ↓ New messages
+          ↓ {newCount > 0 ? `${newCount} new message${newCount === 1 ? '' : 's'}` : 'Scroll to bottom'}
         </button>
       )}
       </div>

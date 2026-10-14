@@ -137,3 +137,9 @@ body {
   background: #33333c;
   border-radius: 4px;
 }
+
+@keyframes rascalNameShift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+.rascal-name-anim { background-size: 200% 200%; }

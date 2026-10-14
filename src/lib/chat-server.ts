@@ -210,6 +210,7 @@ export function bindServerChat(
         await gapi.dropRoom(ch.id).catch(() => {})
       }
     }
+    if (s.selectedServer === serverId) s.selectServer(null)
     s.removeServer(serverId)
     opLogs.delete(serverId)
     pendingInvites.delete(serverId)
@@ -507,6 +508,14 @@ export function bindServerChat(
     if (!invite.id) return
     if (serverOf(invite.id)) return // already joined
     pendingInvites.set(invite.id, from)
+    try {
+      useApp.getState().pushToast({
+        title: 'Server invitation',
+        body: 'You were invited to a server.',
+        chatKey: null,
+        at: Date.now(),
+      })
+    } catch {}
     await p2p()?.joinServerRoom(invite.id).catch(() => {})
     await requestSync(invite.id).catch(() => {})
     // If nobody answers (or the inviter lacked rights), give up quietly.

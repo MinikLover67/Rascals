@@ -22,8 +22,9 @@ function opts() {
   return roomOpts(useApp.getState().settings)
 }
 
-/** File transfer protocol version we speak (advertised in hello `fv`). */
-const FILE_PROTO_VERSION = 2
+/** File transfer protocol version we speak (advertised in hello `fv`).
+ * 1 = legacy chunks, 2 = batched chunks, 3 = + chunked profile images. */
+const FILE_PROTO_VERSION = 3
 /** Chunks per fbatch action: 4×32 KB stays under the ~256 KB SCTP ceiling. */
 export const FILE_BATCH_SIZE = 4
 /** Hard cap on batch length (memory bound against malicious peers). */
@@ -192,14 +193,43 @@ export interface ProfileShowMsg {
   themePrimary: string
   themeAccent: string
   nameStyle: string
+  /** Sender's profile version (updatedAt ms). Receivers ignore shows that
+   * are not newer than their cache — stale replays must not clobber edits. */
+  rev?: number
+  /** Small image: bytes ride inline (sealed box). */
   avatarMime?: string
   avatarBox?: string
   avatarNonce?: string
+  /** Large image: descriptor only — bytes follow as 'pimg' chunks
+   * (one sealed box can never fit a GIF over the SCTP ceiling). */
+  avatarSize?: number
   bannerMime?: string
   bannerBox?: string
   bannerNonce?: string
+  bannerSize?: number
   bannerCss?: string
   [key: string]: string | number | undefined
+}
+
+/** One batched chunk of a large profile image (avatar/banner GIFs).
+ * Same sizing as file batches: up to 4×32 KB plaintext per sealed box so
+ * every message stays under the ~256 KB SCTP ceiling. Receivers accept any
+ * count/offset and assemble when all `total` chunks land. Old clients have
+ * no handler and ignore it (they still get the meta + small images). */
+export interface ProfileImgMsg {
+  v: number
+  to: string
+  from: string
+  kind: 'avatar' | 'banner'
+  rev: number
+  mime: string
+  /** Total 32 KB chunks in this image (cap 128 = 4 MB sanity bound). */
+  total: number
+  baseSeq: number
+  count: number
+  nonce: string
+  box: string
+  [key: string]: string | number
 }
 
 export type MsgActionName =
@@ -215,6 +245,7 @@ export type MsgActionName =
   | 'fget'
   | 'profget'
   | 'profshow'
+  | 'pimg'
   | 'ctrl'
   | 'call'
 export type MsgWire =
@@ -230,6 +261,7 @@ export type MsgWire =
   | FileGetMsg
   | ProfileReqMsg
   | ProfileShowMsg
+  | ProfileImgMsg
   | CtrlMsg
   | CallMsg
 
@@ -480,6 +512,7 @@ export interface MsgHandlers {
   onFileGet: (from: string, msg: FileGetMsg) => void
   onProfileGet: (from: string, msg: ProfileReqMsg) => void
   onProfileShow: (from: string, msg: ProfileShowMsg) => void
+  onProfileImg: (from: string, msg: ProfileImgMsg) => void
   onCtrl: (from: string, msg: CtrlMsg) => void
   onCall: (from: string, msg: CallMsg) => void
 }
@@ -555,6 +588,11 @@ export class P2P {
   /** True when the peer announced batched-chunk support (else legacy fchunk). */
   peerSupportsBatch(friendId: string): boolean {
     return (this.peerFileVersion.get(friendId) ?? 1) >= 2
+  }
+
+  /** True when the peer can receive chunked profile images ('pimg'). */
+  peerSupportsProfileImg(friendId: string): boolean {
+    return (this.peerFileVersion.get(friendId) ?? 0) >= 3
   }
 
   /** Claimed file-protocol version (0 = never heard a hello yet). */
@@ -671,7 +709,7 @@ export class P2P {
     }
     room.onPeerLeave = (peerId: string) => {
       entry.peers.delete(peerId)
-      if (entry.peers.size === 0) this.cb.onPeerOffline(friendId)
+      if (entry.peers.size === 0) { window.setTimeout(() => { if (entry.peers.size === 0) this.cb.onPeerOffline(friendId) }, 15000) }
     }
     hello.onMessage = async (data) => {
       if (!data || data.v !== 1) return
@@ -747,6 +785,20 @@ export class P2P {
       if (!data || data.v !== 1 || data.from !== friendId || data.to !== me)
         return
       this.msg?.onProfileShow(data.from, data)
+    }
+    wire('pimg').onMessage = (data: ProfileImgMsg) => {
+      if (!data || data.v !== 1 || data.from !== friendId || data.to !== me)
+        return
+      if (
+        (data.kind === 'avatar' || data.kind === 'banner') &&
+        typeof data.mime === 'string' &&
+        typeof data.total === 'number' &&
+        typeof data.baseSeq === 'number' &&
+        typeof data.count === 'number' &&
+        typeof data.nonce === 'string' &&
+        typeof data.box === 'string'
+      )
+        this.msg?.onProfileImg(data.from, data)
     }
     wire('ctrl').onMessage = (data: CtrlMsg) => {
       if (!data || data.v !== 1 || data.from !== friendId || data.to !== me)

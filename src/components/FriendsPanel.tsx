@@ -555,7 +555,7 @@ function AppVersion() {
       title={note ?? `Rascals v${version} - click to check for updates (an update banner appears up top when one is found)`}
       className="shrink-0 rounded px-1 font-mono text-[10px] hover:bg-white/5 hover:text-rascal-text"
     >
-      {busy ? '...' : note ? `${note.slice(0, 28)}` : `v${version}`}
+      {busy ? '...' : note ? `${note.slice(0, 28)}` : `v${version} beta`}
     </button>
   )
 }

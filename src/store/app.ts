@@ -117,6 +117,8 @@ export interface VoiceState {
   deafened: boolean
   sharing: boolean
   participants: VoiceParticipant[]
+  /** Bumped whenever screen-share tiles change (arrived/ended/preview). */
+  videosRev: number
 }
 
 export interface GroupInfo {
@@ -208,6 +210,9 @@ interface AppState {
   /** Own profile look (meta persisted; image bytes in IndexedDB). */
   profile: UserProfile
   setProfile: (p: Partial<UserProfile>) => void
+  /** Bumped whenever a peer's cached profile changes (IndexedDB has no reactivity). */
+  peerProfileTick: number
+  bumpPeerProfileTick: () => void
   /** Transient in-app toasts (never persisted). */
   toasts: Toast[]
   pushToast: (t: Omit<Toast, 'id'>) => void
@@ -253,6 +258,7 @@ interface AppState {
   dropFileKey: (fileId: string) => void
   setVoice: (v: Partial<VoiceState>) => void
   setParticipants: (p: VoiceParticipant[]) => void
+  bumpVideosRev: () => void
   resetVoice: () => void
   /** Pending app update found by the updater (in-memory only). */
   availableUpdate: { version: string; notes: string } | null
@@ -299,14 +305,16 @@ function shapeStoredName(raw: unknown, userId: string): string {
 }
 
 /** Own profile look (Nitro-for-free): avatar/banner refs + theme + name style.
- * Images live in IndexedDB; only ids + colors travel here. Synced to peers
- * on demand (they fetch when opening your profile). */
+ * Images live in IndexedDB; only ids + colors travel here. Pushed to online
+ * peers on save (and when a peer returns); peers fetch on demand otherwise.
+ * `updatedAt` is the version peers use to ignore stale/duplicate shows. */
 export interface UserProfile {
   avatar: { id: string; mime: string } | null
   banner: { kind: 'gradient'; value: string } | { kind: 'image'; id: string; mime: string } | null
   themePrimary: string
   themeAccent: string
   nameStyle: string
+  updatedAt: number
 }
 
 export const DEFAULT_PROFILE: UserProfile = {
@@ -315,6 +323,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   themePrimary: '#7c6cff',
   themeAccent: '#3ddc84',
   nameStyle: 'default',
+  updatedAt: 0,
 }
 
 export function shapeProfile(raw: unknown): UserProfile {
@@ -342,6 +351,7 @@ export function shapeProfile(raw: unknown): UserProfile {
     themePrimary: hex(o.themePrimary, DEFAULT_PROFILE.themePrimary),
     themeAccent: hex(o.themeAccent, DEFAULT_PROFILE.themeAccent),
     nameStyle: typeof o.nameStyle === 'string' ? o.nameStyle.slice(0, 32) : 'default',
+    updatedAt: typeof o.updatedAt === 'number' && Number.isFinite(o.updatedAt) ? o.updatedAt : 0,
   }
 }
 
@@ -391,15 +401,16 @@ export const useApp = create<AppState>((set) => ({
   groupOnline: {},
   gkeys: load<AppState['gkeys']>(GKEYS_KEY, { my: {}, peers: {} }),
   fkeys: load<Record<string, string>>(FKEYS_KEY, {}),
-  voice: { call: null, channel: null, muted: false, deafened: false, sharing: false, participants: [] },
+  voice: { call: null, channel: null, muted: false, deafened: false, sharing: false, participants: [], videosRev: 0 },
   availableUpdate: null,
   toasts: [],
   pushToast: (t) =>
     set((s) => {
-      // No doubles: same title+body within 3 s (msg + history-offer races).
-      const last = s.toasts[s.toasts.length - 1]
+      // No doubles: same title+body anywhere in the stack within 10 s.
+      // (Live msg + history-offer races, targeted + broadcast friend-request
+      // knocks ~5 s apart, and reconnect replays all land here.)
       const now = Date.now()
-      if (last && last.title === t.title && last.body === t.body && now - (last.at ?? 0) < 3000) {
+      if (s.toasts.some((x) => x.title === t.title && x.body === t.body && now - (x.at ?? 0) < 10000)) {
         return s
       }
       return {
@@ -407,10 +418,15 @@ export const useApp = create<AppState>((set) => ({
       }
     }),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  peerProfileTick: 0,
+  bumpPeerProfileTick: () => set((s) => ({ peerProfileTick: s.peerProfileTick + 1 })),
   profile: shapeProfile(load<unknown>(PROFILE_KEY, null)),
   setProfile: (p) =>
     set((s) => {
-      const next = shapeProfile({ ...s.profile, ...p })
+      // Every save bumps the version so peers can tell newer shows from
+      // stale/duplicate replays (same bytes re-sent must not clobber edits).
+      // Strictly monotonic: same-ms saves still order correctly.
+      const next = shapeProfile({ ...s.profile, ...p, updatedAt: Math.max(Date.now(), s.profile.updatedAt + 1) })
       try {
         localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
       } catch {
@@ -569,8 +585,10 @@ export const useApp = create<AppState>((set) => ({
   setVoice: (v) => set((s) => ({ voice: { ...s.voice, ...v } })),
   setParticipants: (participants) =>
     set((s) => ({ voice: { ...s.voice, participants } })),
+  bumpVideosRev: () =>
+    set((s) => ({ voice: { ...s.voice, videosRev: s.voice.videosRev + 1 } })),
   resetVoice: () =>
-    set({ voice: { call: null, channel: null, muted: false, deafened: false, sharing: false, participants: [] } }),
+    set({ voice: { call: null, channel: null, muted: false, deafened: false, sharing: false, participants: [], videosRev: 0 } }),
   setAvailableUpdate: (availableUpdate) => set({ availableUpdate }),
   dismissUpdate: () => set({ availableUpdate: null }),
   upsertMessage: (m) =>

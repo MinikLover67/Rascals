@@ -257,7 +257,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             <h2 className="flex-1 text-base font-bold">Settings</h2>
             {appVersion && (
               <span className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-rascal-dim">
-                v{appVersion}
+                v{appVersion} beta
               </span>
             )}
             <button

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { RefreshCw, X } from 'lucide-react'
 import {
   loadPeerBlob,
@@ -25,12 +25,16 @@ export default function ProfileModal({
   const identity = useApp((s) => s.identity)
   const friends = useApp((s) => s.friends)
   const ownProfile = useApp((s) => s.profile)
+  const peerTick = useApp((s) => s.peerProfileTick)
   const self = identity?.userId === userId
   const friend = friends.find((f) => f.userId === userId)
   const [peer, setPeer] = useState<PeerProfile | null>(null)
   const [fetching, setFetching] = useState(false)
+  const [status, setStatus] = useState<string | null>(null)
   const [peerAvatarUrl, setPeerAvatarUrl] = useState<string | null>(null)
   const [peerBannerUrl, setPeerBannerUrl] = useState<string | null>(null)
+  // Guard so the open-time auto-fetch and a manual Refresh never overlap.
+  const fetchingRef = useRef(false)
 
   const ownAvatarUrl = useStoredImage('avatar', self ? (ownProfile.avatar?.id ?? null) : null)
   const ownBannerUrl = useStoredImage(
@@ -38,52 +42,116 @@ export default function ProfileModal({
     self && ownProfile.banner?.kind === 'image' ? ownProfile.banner.id : null,
   )
 
+  function setAvatarUrl(u: string | null) {
+    setPeerAvatarUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return u
+    })
+  }
+
+  function setBannerUrl(u: string | null) {
+    setPeerBannerUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return u
+    })
+  }
+
   async function loadPeer() {
     const cached = await loadPeerProfile(userId)
     if (cached) {
       setPeer(cached)
+      // Reset first: a removed avatar/banner must not keep showing the old one.
       if (cached.avatarMime) {
         const b = await loadPeerBlob(userId, 'avatar')
-        if (b) setPeerAvatarUrl(URL.createObjectURL(b))
+        setAvatarUrl(b ? URL.createObjectURL(b) : null)
+      } else {
+        setAvatarUrl(null)
       }
       if (cached.bannerMime) {
         const b = await loadPeerBlob(userId, 'banner')
-        if (b) setPeerBannerUrl(URL.createObjectURL(b))
+        setBannerUrl(b ? URL.createObjectURL(b) : null)
+      } else {
+        setBannerUrl(null)
       }
     }
   }
 
+  // Switching profiles must never flash the previous person's look:
+  // clear everything, then load + auto-fetch the new one.
   useEffect(() => {
-    if (!self) void loadPeer()
+    setPeer(null)
+    setStatus(null)
+    setPeerAvatarUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
+    setPeerBannerUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
+    if (!self) {
+      void loadPeer()
+      void fetchLatest()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, self])
 
-  async function refresh() {
-    if (self || fetching) return
+  // Their edit pushes straight to our cache — pick it up live while open.
+  useEffect(() => {
+    if (!self) void loadPeer()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peerTick])
+
+  // Ask them for their latest look and wait for the cache to move.
+  // Returns true when something newer actually landed.
+  async function fetchLatest(): Promise<boolean> {
+    if (self || fetchingRef.current) return false
+    fetchingRef.current = true
     setFetching(true)
+    setStatus(null)
     try {
+      const session = await import('../lib/session')
+      if ((session.getP2P()?.peerCount(userId) ?? 0) === 0) {
+        setStatus('offline')
+        return false
+      }
+      // Known-old app (no chunked profile images): meta still arrives, but
+      // their big avatars/banners can never reach us until they update.
+      const peerProto = session.getP2P()?.peerFileVersionOf(userId) ?? 0
+      const outdated = peerProto === 1 || peerProto === 2
       const before = (await loadPeerProfile(userId))?.at ?? 0
-      const { requestPeerProfile } = await import('../lib/session')
-      await requestPeerProfile(userId)
-      // The answer arrives async — poll the cache until it lands.
+      await session.requestPeerProfile(userId)
+      // The answer arrives async (meta first, big GIFs as follow-up
+      // chunks) — poll the cache until it lands.
       const t0 = Date.now()
-      while (Date.now() - t0 < 8000) {
+      while (Date.now() - t0 < 10000) {
         await new Promise((r) => setTimeout(r, 500))
         const cur = await loadPeerProfile(userId)
         if (cur && cur.at > before) break
       }
       await loadPeer()
+      const after = (await loadPeerProfile(userId))?.at ?? 0
+      const updated = after > before
+      setStatus(outdated ? 'oldversion' : updated ? 'updated' : 'uptodate')
+      return updated
     } catch {
-      // peer offline — cache stays
+      setStatus('offline')
+      return false
     } finally {
+      fetchingRef.current = false
       setFetching(false)
     }
   }
 
+  async function refresh() {
+    await fetchLatest().catch(() => {})
+  }
+
   const name = self ? (identity?.name ?? 'You') : (friend?.displayName ?? shortUid(userId))
   const styleId = self ? ownProfile.nameStyle : (peer?.nameStyle ?? 'default')
-  const primary = self ? ownProfile.themePrimary : (peer?.themePrimary ?? '#7c6cff')
-  const accent = self ? ownProfile.themeAccent : (peer?.themeAccent ?? '#3ddc84')
+  // No cache yet = unknown, not defaults: render neutral until we know.
+  const primary = self ? ownProfile.themePrimary : (peer?.themePrimary ?? '#3a3f4d')
+  const accent = self ? ownProfile.themeAccent : (peer?.themeAccent ?? '#2a2e38')
   const avatarSrc = self ? ownAvatarUrl : peerAvatarUrl
   const bannerImg = self ? ownBannerUrl : peerBannerUrl
   const bannerGrad =
@@ -172,8 +240,21 @@ export default function ProfileModal({
           </div>
           {!self && !peer && !fetching && (
             <p className="mt-2 text-[11px] text-white/80">
-              No cached look yet — they need to be online once so the app can fetch it.
+              {status === 'offline'
+                ? 'They seem to be offline — their look will load once you are both online.'
+                : 'No profile fetched yet — they need to be online once so the app can fetch it.'}
             </p>
+          )}
+          {!self && status === 'updated' && (
+            <p className="mt-2 text-[11px] text-white/80">Updated ✓ — showing their latest look.</p>
+          )}
+          {!self && status === 'oldversion' && (
+            <p className="mt-2 text-[11px] text-rascal-amber">
+              They're on an old Rascals — ask them to update (Settings → Check for updates) so their avatar and banner can load.
+            </p>
+          )}
+          {!self && status === 'uptodate' && peer && (
+            <p className="mt-2 text-[11px] text-white/80">Already up to date.</p>
           )}
         </div>
       </div>
