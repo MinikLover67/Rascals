@@ -22,9 +22,11 @@
 </p>
 
 <p align="center">
-  <video src="docs/brag.mp4" width="640" poster="docs/branding/brag-poster.jpg" controls>
-    <a href="docs/brag.mp4">Watch the 20-second demo (MP4)</a>
-  </video>
+  <img src="docs/brag.gif" alt="Rascals 20-second demo" width="640" />
+</p>
+
+<p align="center">
+  <em>20-second demo</em> · <a href="docs/brag.mp4">HD MP4 with sound</a>
 </p>
 
 ---
