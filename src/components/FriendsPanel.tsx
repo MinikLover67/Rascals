@@ -169,12 +169,10 @@ export default function FriendsPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3 scroll-thin">
         <ConnHealth />
-        <div className="flex items-center justify-between">
-          <div className="text-xs font-semibold uppercase tracking-wider text-rascal-dim">
-            Add friend
-          </div>
-          <ConnectionDoctor />
+        <div className="text-xs font-semibold uppercase tracking-wider text-rascal-dim">
+          Add friend
         </div>
+        <ConnectionDoctor />
         <p className="mt-1 text-[11px] text-rascal-dim">
           Codes work across the internet — different Wi-Fi, different cities, no problem.
         </p>
