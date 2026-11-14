@@ -1,0 +1,64 @@
+# Builds + signs + publishes a Rascals release from a tag. No local Windows
+# machine needed: push a tag (v0.1.28), GitHub Actions does the rest — signed
+# installers plus the updater manifest (latest.json) land on the release.
+#
+# One-time setup (done): the minisign key lives in the repo Actions secrets
+# (TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD), sealed by
+# scripts/gh-secrets.mjs. The public key is baked into every installed copy,
+# so the SAME key must be used forever — losing it means shipping a new app
+# identity old installs won't trust.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Version from tag
+        id: ver
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Bump manifests to tag version
+        shell: bash
+        run: node scripts/bump-version.mjs "${{ steps.ver.outputs.version }}"
+
+      - name: Install frontend deps
+        run: npm install --no-audit --no-fund
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build, sign and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Rascals v__VERSION__'
+          releaseBody: 'Auto-updates all installed copies. See docs/RELEASE-NOTES for details. Installers are signed; the updater manifest (latest.json) is attached.'
+          releaseDraft: false
+          prerelease: false
+          args: ''

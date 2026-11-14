@@ -9,7 +9,23 @@ baked into the app), the friend is offered the update in Settings, it downloads
 the signed installer, verifies the signature, installs, and restarts. No manual
 re-sending of setup files after the first install.
 
-## Cut a release (one command)
+## Cut a release (from anywhere — CI, recommended)
+
+```bash
+git tag v0.1.2 && git push origin v0.1.2
+```
+
+That's it. The `docs/release-workflow.yml` pipeline (copy it to `.github/workflows/release.yml` once — see below) builds, signs and
+publishes on Windows runners: it bumps the manifests to the tag version, runs
+the unit tests, builds the installers, signs them with the minisign key from
+the repo Actions secrets (sealed once via `scripts/gh-secrets.mjs`), and
+creates the GitHub release with the setup exe, msi and `latest.json` attached.
+Installed copies pick the update up automatically.
+
+The signing key must be the SAME one forever — the public key is baked into
+every installed copy (see the warning below).
+
+## Cut a release (local, Windows alternative)
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 0.1.2 -Notes "What changed"
