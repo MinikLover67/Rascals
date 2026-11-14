@@ -61,4 +61,4 @@ jobs:
           releaseBody: 'Auto-updates all installed copies. See docs/RELEASE-NOTES for details. Installers are signed; the updater manifest (latest.json) is attached.'
           releaseDraft: false
           prerelease: false
-          args: ''
+          args: '--bundles nsis'
