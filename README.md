@@ -1,21 +1,33 @@
-# Rascals
+<p align="center">
+  <img src="docs/branding/logo-mark.svg" alt="Rascals logo" width="128" />
+</p>
 
-**Private, serverless, peer-to-peer chat for desktop.** No accounts, no message
-server, no database — friends connect directly over encrypted WebRTC, with
-decentralized signaling. Text, images, files, voice messages, group chats,
-servers with channels, 1:1 calls, voice channels, screensharing.
+<h1 align="center">Rascals</h1>
 
-> **Beta** — still testing, bugs to fix. Bug reports welcome, see
-> [SECURITY.md](SECURITY.md) for how to report.
+<p align="center">
+  <strong>Private, serverless, peer-to-peer chat for desktop.</strong><br/>
+  No accounts, no message server, no database — friends connect directly over encrypted WebRTC.
+</p>
 
-[![Latest release](https://img.shields.io/github/v/release/MinikLover67/Rascals?include_prereleases)](https://github.com/MinikLover67/Rascals/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/MinikLover67/Rascals/total)](https://github.com/MinikLover67/Rascals/releases)
-![Platform](https://img.shields.io/badge/platform-Windows-blue)
+<p align="center">
+  <em>Beta</em> — still testing, bugs to fix. Bug reports welcome, see
+  <a href="SECURITY.md">SECURITY.md</a>.
+</p>
 
-<!-- Screenshots: drop 2-3 PNGs in a /docs folder and uncomment below —
-![Chat window](docs/screenshot-chat.png)
--->
+<p align="center">
+  <a href="https://github.com/MinikLover67/Rascals/releases"><img src="https://img.shields.io/github/v/release/MinikLover67/Rascals?include_prereleases" alt="Latest release"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"/></a>
+  <a href="https://github.com/MinikLover67/Rascals/releases"><img src="https://img.shields.io/github/downloads/MinikLover67/Rascals/total" alt="Downloads"/></a>
+  <img src="https://img.shields.io/badge/platform-Windows-blue" alt="platform: Windows"/>
+</p>
+
+<p align="center">
+  <video src="docs/brag.mp4" width="640" poster="docs/branding/brag-poster.jpg" controls>
+    <a href="docs/brag.mp4">Watch the 20-second demo (MP4)</a>
+  </video>
+</p>
+
+---
 
 ## Why Rascals instead of Signal / Discord / Tox?
 
