@@ -4,6 +4,7 @@ import { decodeInvite, encodeInvite } from '../lib/invite'
 import { acceptRequest, getP2P, requestFriend, unfriend } from '../lib/session'
 import { useApp, unreadCount } from '../store/app'
 import Avatar, { PeerAvatar, PeerName } from './Avatar'
+import ConnectionDoctor from './ConnectionDoctor'
 import CustomizeModal from './CustomizeModal'
 import ProfileModal from './ProfileModal'
 import SettingsModal from './SettingsModal'
@@ -168,8 +169,11 @@ export default function FriendsPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3 scroll-thin">
         <ConnHealth />
-        <div className="text-xs font-semibold uppercase tracking-wider text-rascal-dim">
-          Add friend
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-semibold uppercase tracking-wider text-rascal-dim">
+            Add friend
+          </div>
+          <ConnectionDoctor />
         </div>
         <p className="mt-1 text-[11px] text-rascal-dim">
           Codes work across the internet — different Wi-Fi, different cities, no problem.

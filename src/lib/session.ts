@@ -150,24 +150,37 @@ export async function startSession(identity: Identity): Promise<void> {
   const inst = new P2P(
     identity,
     {
-      onFriendRequest: (userId, displayName) => {
-        // Peer-controlled: shape before it touches state or notifications.
-        const name = shapeDisplayName(displayName) || shortUid(userId)
-        const s = useApp.getState()
-        // One knock, one notification: the sender re-knocks every minute
-        // plus a targeted + broadcast pair ~5 s apart, so an already-known
-        // request only refreshes silently (no new toast/sound). Knocks from
-        // existing friends are just presence noise — ignore them.
-        if (s.friends.some((f) => f.userId === userId)) return
-        const known = s.requests.some((r) => r.userId === userId && r.direction === 'in')
-        s.upsertRequest({
-          userId,
-          displayName: name,
-          direction: 'in',
-          ts: Date.now(),
-        })
-        if (!known) alertFriendRequest(name)
-      },
+        onFriendRequest: (userId, displayName) => {
+          // Peer-controlled: shape before it touches state or notifications.
+          const name = shapeDisplayName(displayName) || shortUid(userId)
+          const s = useApp.getState()
+          // One knock, one notification: the sender re-knocks every minute
+          // plus a targeted + broadcast pair ~5 s apart, so an already-known
+          // request only refreshes silently (no new toast/sound). Knocks from
+          // existing friends are just presence noise — ignore them.
+          if (s.friends.some((f) => f.userId === userId)) return
+          // Mutual add: they knocked while we already added them (both pasted
+          // each other's codes). A verified freq IS their signed intent, so
+          // complete the friendship now — recording an 'in' request here would
+          // overwrite our 'out' record and strand the handshake (the hello
+          // that follows looks like it came from a stranger).
+          const outgoing = s.requests.find(
+            (r) => r.userId === userId && r.direction === 'out',
+          )
+          if (outgoing) {
+            s.removeRequest(userId)
+            s.addFriend({ userId, displayName: name, online: false, addedAt: Date.now() })
+            return
+          }
+          const known = s.requests.some((r) => r.userId === userId && r.direction === 'in')
+          s.upsertRequest({
+            userId,
+            displayName: name,
+            direction: 'in',
+            ts: Date.now(),
+          })
+          if (!known) alertFriendRequest(name)
+        },
       onHello: (userId, displayName) => {
         const s = useApp.getState()
         // Peer-controlled: shape before storing (hello re-sends on every connect).

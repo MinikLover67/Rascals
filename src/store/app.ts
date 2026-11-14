@@ -480,6 +480,12 @@ export const useApp = create<AppState>((set) => ({
   upsertRequest: (r) =>
     set((s) => {
       if (s.friends.some((f) => f.userId === r.userId)) return s
+      const existing = s.requests.find((x) => x.userId === r.userId)
+      // An outgoing request is OUR pending add — a duplicate incoming knock
+      // must not overwrite it (mutual-add race would strand the handshake).
+      if (existing && existing.direction === 'out' && r.direction === 'in') {
+        return s
+      }
       const rest = s.requests.filter((x) => x.userId !== r.userId)
       return { requests: [...rest, r] }
     }),
