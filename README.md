@@ -67,11 +67,32 @@ then publish `release/vX.Y.Z/*` as a GitHub release (see [RELEASE.md](RELEASE.md
 
 New contributors: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Support & feedback (beta preview)
+
+Something not working — a friend add that never lands, messages stuck, calls
+with no audio? Don't guess: run the built-in **Connection doctor** (Friends
+panel, next to "Add friend") for live findings, then use one of these:
+
+- **Self-help page** — [Support (beta)](https://miniklover67.github.io/Rascals/support/):
+  pick what's wrong and get targeted fixes, then send structured feedback in
+  one click. Also served from [docs/support](docs/support/index.html).
+- **[File a bug](https://github.com/MinikLover67/Rascals/issues/new?template=bug_report.yml)** —
+  the form asks you to pick what's broken and paste your Connection doctor
+  report (no messages, no keys). Ideas go to the
+  [feature form](https://github.com/MinikLover67/Rascals/issues/new?template=feature_request.yml).
+- **AI-assisted debugging** — register [mcp/rascals-mcp.mjs](mcp/README.md) in any
+  MCP-capable assistant, paste your copied report, and get a verdict with fix
+  steps (`analyze_rascals_connection`).
+
+Beta feedback is labeled `beta-feedback` — rough reports are welcome.
+
 ## Security
 
 See [SECURITY.md](SECURITY.md) for the threat model and the self-audit with
 live proof-of-concept exploits. To report an issue, open a GitHub issue —
-executable proof beats descriptions.
+executable proof beats descriptions. Optional third-party check: services like
+[SetRepo](https://setrepo.com) can scan this repo for secrets/dependency CVEs
+(not affiliated — untested by us; the built-in self-audit is authoritative).
 
 ## License
 

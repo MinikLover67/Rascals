@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rascals — Support (beta)</title>
+<style>
+  :root {
+    --bg: #0b0b0e; --panel: #101014; --line: #232329; --text: #e8e9ee;
+    --dim: #9aa0ab; --accent: #7c6cff; --accent2: #9b8bff; --green: #3ddc84;
+    --amber: #f5b545; --red: #ff5c5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 16px 64px; background: var(--bg); color: var(--text);
+    font: 15px/1.6 ui-sans-serif, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  header { text-align: center; padding: 36px 0 8px; }
+  .logo { width: 72px; height: 72px; }
+  h1 { margin: 10px 0 2px; font-size: 26px; letter-spacing: -0.5px; }
+  .tag { color: var(--dim); font-size: 14px; }
+  .beta {
+    display: inline-block; margin-top: 10px; padding: 2px 12px; border-radius: 999px;
+    border: 1px solid var(--amber); color: var(--amber); font-size: 12px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+  .beta + .note { margin-top: 6px; color: var(--dim); font-size: 12px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px; margin-top: 18px;
+  }
+  h2 { font-size: 15px; margin: 0 0 4px; }
+  .hint { color: var(--dim); font-size: 13px; margin: 0 0 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--text);
+    border-radius: 10px; padding: 8px 13px; font-size: 13.5px; transition: all .15s;
+  }
+  .chip:hover { border-color: var(--accent); }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .help { display: none; margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .help.on { display: block; }
+  .help ol { margin: 8px 0 0; padding-left: 20px; }
+  .help li { margin-bottom: 7px; color: var(--dim); }
+  .help li b { color: var(--text); font-weight: 600; }
+  textarea {
+    width: 100%; min-height: 110px; resize: vertical; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text);
+    padding: 10px 12px; font: 12px/1.5 ui-monospace, 'Cascadia Code', Consolas, monospace;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  .verdict { margin-top: 8px; font-size: 13px; display: none; }
+  .verdict.ok { display: block; color: var(--green); }
+  .verdict.bad { display: block; color: var(--amber); }
+  .verdict.err { display: block; color: var(--red); }
+  .desc {
+    width: 100%; min-height: 70px; margin-bottom: 10px;
+  }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .btn {
+    flex: 1 1 200px; text-align: center; cursor: pointer; border-radius: 10px;
+    padding: 10px 16px; font-size: 14px; font-weight: 700; border: 1px solid var(--line);
+    background: transparent; color: var(--text); text-decoration: none; display: inline-block;
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent2); }
+  .btn.ghost:hover { border-color: var(--accent); }
+  .btn[aria-disabled="true"] { opacity: .55; pointer-events: none; }
+  a { color: var(--accent2); }
+  footer { margin-top: 26px; color: var(--dim); font-size: 12px; text-align: center; }
+  .fine { color: var(--dim); font-size: 12px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="logo" viewBox="0 0 256 256" aria-label="Rascals logo">
+      <defs>
+        <linearGradient id="pg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#9b8bff"/><stop offset="1" stop-color="#6b5cf0"/>
+        </linearGradient>
+        <linearGradient id="dg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#16161c"/><stop offset="1" stop-color="#0a0a0e"/>
+        </linearGradient>
+      </defs>
+      <path d="M96 96 L160 160" stroke="url(#pg)" stroke-width="30" stroke-linecap="round"/>
+      <circle cx="96" cy="96" r="40" fill="url(#dg)" stroke="url(#pg)" stroke-width="10"/>
+      <circle cx="96" cy="96" r="11" fill="url(#pg)"/>
+      <circle cx="160" cy="160" r="40" fill="url(#pg)"/>
+      <circle cx="160" cy="160" r="14" fill="#0a0a0e"/>
+      <circle cx="190" cy="130" r="20" fill="#3ddc84" opacity="0.18"/>
+      <circle cx="190" cy="130" r="12" fill="#3ddc84"/>
+    </svg>
+    <h1>Support</h1>
+    <p class="tag">Tell us what's wrong — or fix it yourself in a minute.</p>
+    <span class="beta">Beta preview</span>
+    <p class="note">This page is feedback infrastructure, not part of the app — nothing here touches your Rascals install.</p>
+  </header>
+
+  <div class="card">
+    <h2>1 · What's not working?</h2>
+    <p class="hint">Pick one — you'll get targeted things to try first. Many "bugs" are a network quirk that takes 30 seconds to fix.</p>
+    <div class="chips" id="chips"></div>
+    <div class="help" id="help"></div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Attach your Connection doctor report (recommended)</h2>
+    <p class="hint">In Rascals: Friends panel → <b>Connection doctor</b> → <b>Copy report</b>, then paste below. It contains <b>no messages and no keys</b> — just relay/peer status.</p>
+    <textarea id="report" placeholder='{"schema":"rascals-connection-report/1", ...}'></textarea>
+    <p class="verdict" id="verdict"></p>
+  </div>
+
+  <div class="card">
+    <h2>3 · Send it to us</h2>
+    <p class="hint">Describe what happened in your own words — that's the most useful part.</p>
+    <textarea class="desc" id="desc" placeholder="I added my friend with their invite code, it said request sent, but they never got anything..."></textarea>
+    <div class="row">
+      <a class="btn primary" id="sendBtn" aria-disabled="true" target="_blank" rel="noopener">Open a feedback issue on GitHub</a>
+      <a class="btn ghost" href="https://github.com/MinikLover67/Rascals/issues?q=" target="_blank" rel="noopener">Browse existing issues</a>
+    </div>
+    <p class="fine">Issues are public. Don't paste invite codes or personal details into the description — the report above is designed to be safe to share.</p>
+  </div>
+
+  <footer>Preview — feedback flows through GitHub issues, nothing is stored anywhere else.</footer>
+</div>
+
+<script>
+const REPO = 'MinikLover67/Rascals';
+
+// Category → (exact issue-template dropdown value, targeted self-help steps)
+const CATS = [
+  {
+    chip: "Can't add a friend",
+    issue: 'Connecting to friends (invite / add / stuck offline)',
+    help: [
+      "<b>Both apps must be open at the same time.</b> Friend requests retry every minute but only arrive while the other person's app is running.",
+      "Have <b>them</b> check their Connection doctor too — if it says <b>0/11 relays</b>, their network (school/work Wi-Fi, VPN, hotel) is blocking signaling. Phone hotspot works.",
+      "Check the code is complete and starts with <b>rascal1:</b> — copy it again rather than retyping it.",
+      "If you both added each other at the same time and it froze: you've hit a race that's <b>fixed in 0.1.28</b> — update, then press Repair connections.",
+      "Still stuck? Press <b>Repair connections</b> in the Connection doctor on both sides.",
+    ],
+  },
+  {
+    chip: 'Friend stuck offline',
+    issue: 'Connecting to friends (invite / add / stuck offline)',
+    help: [
+      "Green dot needs a <b>direct WebRTC connection</b>. Strict NAT, cellular data, or router <b>client isolation</b> can block it even when signaling looks green.",
+      "Both of you open the Connection doctor: <b>relays green but 'no peer anywhere'</b> = NAT/firewall problem.",
+      "Try: same home Wi-Fi for a test; if it connects, it's the network, not the app.",
+      "Permanent fix for hard networks: add a <b>TURN server</b> in Settings → Connection → Network relay (traffic still end-to-end encrypted).",
+    ],
+  },
+  {
+    chip: 'Messages not arriving',
+    issue: 'Messages (sending, receiving, delivery)',
+    help: [
+      "Messages to an <b>offline</b> friend queue up (you'll see the offline note in the input) — they flush when the friend comes back online.",
+      "The gray dot means still in flight; a connection flap can wedge it. <b>Repair connections</b> and resend.",
+      "If history is missing after a reinstall, scroll up or ask the friend to message you — catch-up sync kicks in on hello.",
+    ],
+  },
+  {
+    chip: 'Calls / voice broken',
+    issue: 'Calls / voice / screensharing',
+    help: [
+      "Calls are the most NAT-sensitive feature — ringing works but no audio usually means direct connection failed.",
+      "Check the mic permission for the app in Windows settings first.",
+      "Same-network test (both on home Wi-Fi): if audio works there, add a TURN server for everywhere else.",
+    ],
+  },
+  {
+    chip: 'Install / update trouble',
+    issue: 'Install or update',
+    help: [
+      "Only download from the <b>Releases</b> page — the file is <code>Rascals_x.y.z_x64-setup.exe</code>.",
+      "Updates arrive in-app automatically (checked daily, or Settings → check now). If it says signed-update failed, just download the new installer manually.",
+      "Windows SmartScreen warning is normal for unsigned hobby builds — press More info → Run anyway.",
+    ],
+  },
+  {
+    chip: 'Something else',
+    issue: 'Something else',
+    help: [
+      "Just describe it below — rough descriptions are fine, we read everything.",
+      "If it involves connection weirdness, the report from step 2 still helps a lot.",
+    ],
+  },
+];
+
+let picked = null;
+const chipsEl = document.getElementById('chips');
+const helpEl = document.getElementById('help');
+
+CATS.forEach((c, i) => {
+  const b = document.createElement('button');
+  b.className = 'chip'; b.textContent = c.chip;
+  b.onclick = () => {
+    picked = c;
+    document.querySelectorAll('.chip').forEach((x) => x.classList.remove('on'));
+    b.classList.add('on');
+    helpEl.classList.add('on');
+    helpEl.innerHTML = '<h2 style="font-size:14px">Things to try first</h2><ol>' +
+      c.help.map((s) => '<li>' + s + '</li>').join('') + '</ol>';
+    update();
+  };
+  chipsEl.appendChild(b);
+});
+
+const reportEl = document.getElementById('report');
+const verdictEl = document.getElementById('verdict');
+const descEl = document.getElementById('desc');
+const sendBtn = document.getElementById('sendBtn');
+
+function checkReport() {
+  const t = reportEl.value.trim();
+  if (!t) { verdictEl.className = 'verdict'; return null; }
+  try {
+    const j = JSON.parse(t);
+    if (j.schema === 'rascals-connection-report/1') {
+      verdictEl.className = 'verdict ok';
+      verdictEl.textContent = '✓ Looks like a valid Rascals report — this will make debugging much faster.';
+      return j;
+    }
+    verdictEl.className = 'verdict bad';
+    verdictEl.textContent = 'This is valid JSON but not a Rascals report (expected schema rascals-connection-report/1). Copy it again from the Connection doctor.';
+  } catch {
+    verdictEl.className = 'verdict err';
+    verdictEl.textContent = 'Not valid JSON — make sure you copied the whole report.';
+  }
+  return null;
+}
+
+function update() {
+  const ready = !!picked && descEl.value.trim().length > 0;
+  sendBtn.setAttribute('aria-disabled', ready ? 'false' : 'true');
+}
+
+reportEl.addEventListener('input', () => { checkReport(); });
+descEl.addEventListener('input', update);
+
+sendBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  if (!picked || !descEl.value.trim()) return;
+  const rep = checkReport();
+  const q = new URLSearchParams();
+  q.set('template', 'bug_report.yml');
+  q.set('title', '[feedback] ' + picked.chip);
+  q.set('what-broke', picked.issue);
+  q.set('what-happened', descEl.value.trim());
+  if (rep) q.set('report', JSON.stringify(rep, null, 2));
+  window.open('https://github.com/' + REPO + '/issues/new?' + q.toString(), '_blank');
+});
+</script>
+</body>
+</html>
