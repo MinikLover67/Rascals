@@ -3,8 +3,8 @@
   <defs>
     <mask id="holes-white">
       <rect width="256" height="256" fill="white"/>
-      <circle cx="96" cy="96" r="11" fill="black"/>
-      <circle cx="160" cy="160" r="14" fill="black"/>
+      <circle cx="96" cy="96" r="16" fill="black"/>
+      <circle cx="160" cy="160" r="16" fill="black"/>
     </mask>
   </defs>
   <g mask="url(#holes-white)">

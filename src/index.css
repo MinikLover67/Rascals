@@ -1,6 +1,24 @@
 @import "tailwindcss";
 
+/* Montserrat (OFL) — variable font, one file covers weights 100–900. */
+@font-face {
+  font-family: "Montserrat";
+  src: url("./assets/fonts/Montserrat-Variable.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("./assets/fonts/Montserrat-Italic-Variable.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
 @theme {
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+
   --color-rascal-bg: #08080a;
   --color-rascal-panel: #101014;
   --color-rascal-rail: #000000;
@@ -129,7 +147,7 @@ body {
   margin: 0;
   background: var(--color-rascal-bg);
   color: var(--color-rascal-text);
-  font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
   letter-spacing: 0.01em;
   overflow: hidden;
 }
