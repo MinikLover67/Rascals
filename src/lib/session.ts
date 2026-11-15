@@ -9,10 +9,12 @@ import { bindVoice, type VoiceApi } from './voice'
 import type { Identity } from './identity'
 import { shapeDisplayName, shortUid } from './format'
 import { P2P } from './p2p'
+import { NostrChannel } from './nostr-channel'
 import { playSound } from './sound'
 import { useApp } from '../store/app'
 
 let p2p: P2P | null = null
+let nostr: NostrChannel | null = null
 let chat: ChatApi | null = null
 let groupChat: GroupApi | null = null
 let serverChat: ServerApi | null = null
@@ -35,6 +37,10 @@ const RETRY_MS = 30000
 
 export function getP2P(): P2P | null {
   return p2p
+}
+
+export function getNostr(): NostrChannel | null {
+  return nostr
 }
 
 export function getChat(): ChatApi | null {
@@ -79,7 +85,9 @@ export function stopSession(): void {
   }
   voice?.teardown()
   p2p?.stop()
+  nostr?.stop()
   p2p = null
+  nostr = null
   chat = null
   groupChat = null
   serverChat = null
@@ -149,75 +157,74 @@ export async function startSession(identity: Identity): Promise<void> {
   }
   voice = vapi
   api.onCallSignal((from, kind, callId) => vapi.handleSignal(from, kind, callId))
+  // Shared network callbacks — used by both the Trystero transport (below)
+  // and the persistent Nostr channel, so a hello/request arriving over either
+  // path is handled identically. Defined as closures so they can reach
+  // peerReturned and the chat apis bound above.
+  const onFriendRequest = (userId: string, displayName: string): void => {
+    // Peer-controlled: shape before it touches state or notifications.
+    const name = shapeDisplayName(displayName) || shortUid(userId)
+    const s = useApp.getState()
+    // One knock, one notification: the sender re-knocks every minute
+    // plus a targeted + broadcast pair ~5 s apart, so an already-known
+    // request only refreshes silently (no new toast/sound). Knocks from
+    // existing friends are just presence noise — ignore them.
+    if (s.friends.some((f) => f.userId === userId)) return
+    // Mutual add: they knocked while we already added them (both pasted
+    // each other's codes). A verified freq IS their signed intent, so
+    // complete the friendship now — recording an 'in' request here would
+    // overwrite our 'out' record and strand the handshake (the hello
+    // that follows looks like it came from a stranger).
+    const outgoing = s.requests.find((r) => r.userId === userId && r.direction === 'out')
+    if (outgoing) {
+      s.removeRequest(userId)
+      s.addFriend({ userId, displayName: name, online: false, addedAt: Date.now() })
+      // Complete the handshake on the wire too, not just in state: join
+      // the pairwise room and announce presence so both sides flip online
+      // without a restart. Also stop knocking — they're a friend now.
+      void getP2P()?.stopFriendRequest(userId).catch(() => {})
+      void getNostr()?.removeFriendRequest(userId).catch(() => {})
+      void getP2P()
+        ?.ensureDmRoom(userId)
+        .then(() => getP2P()?.broadcastHellos())
+        .catch(() => {})
+      return
+    }
+    const known = s.requests.some((r) => r.userId === userId && r.direction === 'in')
+    s.upsertRequest({ userId, displayName: name, direction: 'in', ts: Date.now() })
+    if (!known) alertFriendRequest(name)
+  }
+  const onHello = (userId: string, displayName: string): void => {
+    const s = useApp.getState()
+    // Peer-controlled: shape before storing (hello re-sends on every connect).
+    const name = shapeDisplayName(displayName) || shortUid(userId)
+    lastSeen.set(userId, Date.now())
+    const known = s.friends.some((f) => f.userId === userId)
+    if (!known) {
+      // Stranger said hello in our pairwise room: only accept if WE
+      // requested them first (completes the handshake without extra round trips).
+      const outgoing = s.requests.some((r) => r.userId === userId && r.direction === 'out')
+      if (outgoing) {
+        s.removeRequest(userId)
+        s.addFriend({ userId, displayName: name, online: true, addedAt: Date.now() })
+        // Friendship completed via hello — stop knocking at their lobby.
+        void getP2P()?.stopFriendRequest(userId).catch(() => {})
+        void getNostr()?.removeFriendRequest(userId).catch(() => {})
+      }
+      return
+    }
+    const wasOffline = !s.friends.some((f) => f.userId === userId && f.online)
+    s.renameFriend(userId, name)
+    s.setOnline(userId, true)
+    // Hello-driven return (join handshake missed): flush queued traffic
+    // now, not on our next restart.
+    if (wasOffline) peerReturned(userId)
+  }
   const inst = new P2P(
     identity,
     {
-        onFriendRequest: (userId, displayName) => {
-          // Peer-controlled: shape before it touches state or notifications.
-          const name = shapeDisplayName(displayName) || shortUid(userId)
-          const s = useApp.getState()
-          // One knock, one notification: the sender re-knocks every minute
-          // plus a targeted + broadcast pair ~5 s apart, so an already-known
-          // request only refreshes silently (no new toast/sound). Knocks from
-          // existing friends are just presence noise — ignore them.
-          if (s.friends.some((f) => f.userId === userId)) return
-          // Mutual add: they knocked while we already added them (both pasted
-          // each other's codes). A verified freq IS their signed intent, so
-          // complete the friendship now — recording an 'in' request here would
-          // overwrite our 'out' record and strand the handshake (the hello
-          // that follows looks like it came from a stranger).
-          const outgoing = s.requests.find(
-            (r) => r.userId === userId && r.direction === 'out',
-          )
-          if (outgoing) {
-            s.removeRequest(userId)
-            s.addFriend({ userId, displayName: name, online: false, addedAt: Date.now() })
-            // Complete the handshake on the wire too, not just in state: join
-            // the pairwise room and announce presence so both sides flip online
-            // without a restart. Also stop knocking — they're a friend now.
-            void getP2P()?.stopFriendRequest(userId).catch(() => {})
-            void getP2P()
-              ?.ensureDmRoom(userId)
-              .then(() => getP2P()?.broadcastHellos())
-              .catch(() => {})
-            return
-          }
-          const known = s.requests.some((r) => r.userId === userId && r.direction === 'in')
-          s.upsertRequest({
-            userId,
-            displayName: name,
-            direction: 'in',
-            ts: Date.now(),
-          })
-          if (!known) alertFriendRequest(name)
-        },
-      onHello: (userId, displayName) => {
-        const s = useApp.getState()
-        // Peer-controlled: shape before storing (hello re-sends on every connect).
-        const name = shapeDisplayName(displayName) || shortUid(userId)
-        lastSeen.set(userId, Date.now())
-        const known = s.friends.some((f) => f.userId === userId)
-        if (!known) {
-          // Stranger said hello in our pairwise room: only accept if WE
-          // requested them first (completes the handshake without extra round trips).
-          const outgoing = s.requests.some(
-            (r) => r.userId === userId && r.direction === 'out',
-          )
-          if (outgoing) {
-            s.removeRequest(userId)
-            s.addFriend({ userId, displayName: name, online: true, addedAt: Date.now() })
-            // Friendship completed via hello — stop knocking at their lobby.
-            void getP2P()?.stopFriendRequest(userId).catch(() => {})
-          }
-          return
-        }
-        const wasOffline = !s.friends.some((f) => f.userId === userId && f.online)
-        s.renameFriend(userId, name)
-        s.setOnline(userId, true)
-        // Hello-driven return (join handshake missed): flush queued traffic
-        // now, not on our next restart.
-        if (wasOffline) peerReturned(userId)
-      },
+      onFriendRequest,
+      onHello,
       onPeerOnline: (friendId) => {
         peerReturned(friendId)
       },
@@ -240,6 +247,48 @@ export async function startSession(identity: Identity): Promise<void> {
   inst.setGroupHandlers(gapi.handlers)
   inst.setServerHandlers(sapi.handlers)
   await inst.start()
+  // Persistent Nostr channel — carries presence + friend requests over stored
+  // replaceable events so they land even when Trystero's peer discovery fails
+  // cross-network (the cause of "both sides show each other offline").
+  nostr = new NostrChannel(identity.userId, {
+    onHello: (userId, displayName) => {
+      // Reuse the same handler Trystero's onHello uses — defined below as a
+      // closure so it can reach peerReturned / the chat apis.
+      onHello(userId, displayName)
+    },
+    onFriendRequest: (userId, displayName) => {
+      onFriendRequest(userId, displayName)
+    },
+  })
+  void nostr.start().catch(() => {
+    // relays unreachable now — the pool keeps retrying in the background
+  })
+  // Announce presence + pending requests immediately so peers flipping online
+  // see us within seconds, not after the first 30 s heartbeat.
+  window.setTimeout(() => {
+    try {
+      const n = getNostr()
+      const inst = getP2P()
+      if (!n || !inst) return
+      const st = useApp.getState()
+      for (const f of st.friends) {
+        void inst
+          .helloPayload(f.userId)
+          .then((p) => n.publishPresence(f.userId, p))
+          .catch(() => {})
+      }
+      for (const r of st.requests) {
+        if (r.direction !== 'out') continue
+        if (st.friends.some((f) => f.userId === r.userId)) continue
+        void inst
+          .helloPayload(r.userId)
+          .then((p) => n.publishFriendRequest(r.userId, p))
+          .catch(() => {})
+      }
+    } catch {
+      // initial publish must never break the app
+    }
+  }, 3000)
   const s = useApp.getState()
   for (const f of s.friends) await inst.ensureDmRoom(f.userId)
   for (const r of s.requests)
@@ -282,6 +331,27 @@ export async function startSession(identity: Identity): Promise<void> {
     try {
       const inst = getP2P()
       void inst?.broadcastHellos().catch(() => {})
+      // Also push presence over the persistent Nostr channel — independent of
+      // Trystero discovery, so cross-network peers still see us online.
+      const n = getNostr()
+      if (n) {
+        const st0 = useApp.getState()
+        for (const f of st0.friends) {
+          void inst
+            ?.helloPayload(f.userId)
+            .then((p) => n.publishPresence(f.userId, p))
+            .catch(() => {})
+        }
+        // Re-publish pending outgoing friend requests over Nostr too.
+        for (const r of st0.requests) {
+          if (r.direction !== 'out') continue
+          if (st0.friends.some((f) => f.userId === r.userId)) continue
+          void inst
+            ?.helloPayload(r.userId)
+            .then((p) => n.publishFriendRequest(r.userId, p))
+            .catch(() => {})
+        }
+      }
       const st = useApp.getState()
       const now = Date.now()
       for (const f of st.friends) {
@@ -402,6 +472,15 @@ export async function acceptRequest(userId: string, displayName: string): Promis
   // Announce presence in the pairwise room so the requester sees us online
   // immediately (don't rely on their onPeerJoin catching our join).
   void getP2P()?.broadcastHellos().catch(() => {})
+  // And over the persistent channel — same reason as everywhere else.
+  const n = getNostr()
+  if (n) {
+    void getP2P()
+      ?.helloPayload(userId)
+      .then((p) => n.publishPresence(userId, p))
+      .catch(() => {})
+    void n.removeFriendRequest(userId).catch(() => {})
+  }
   await getChat()?.peerBecameAvailable(userId).catch(() => {})
 }
 
@@ -412,6 +491,14 @@ export async function requestFriend(userId: string, displayName: string): Promis
   s.upsertRequest({ userId, displayName: shapeDisplayName(displayName) || shortUid(userId), direction: 'out', ts: Date.now() })
   await getP2P()?.ensureDmRoom(userId)
   await getP2P()?.sendFriendRequest(userId)
+  // Persistent channel too — lands even if the peer is offline right now.
+  const n = getNostr()
+  if (n) {
+    void getP2P()
+      ?.helloPayload(userId)
+      .then((p) => n.publishFriendRequest(userId, p))
+      .catch(() => {})
+  }
 }
 
 /**

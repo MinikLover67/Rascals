@@ -600,6 +600,13 @@ export class P2P {
     return this.peerFileVersion.get(friendId) ?? 0
   }
 
+  /** Build a signed hello payload for a target — used by the persistent
+   * Nostr channel so it can publish the same verifiable beacon Trystero
+   * sends, without depending on peer discovery. */
+  async helloPayload(targetUserId: string): Promise<HelloPayload> {
+    return this.makeHello(targetUserId)
+  }
+
   /** Leave + rejoin a DM room (resets wedged discovery state). Safe to call
    * any time; in-flight streams abort and resume via the normal retry path. */
   async rejoinDmRoom(friendId: string): Promise<void> {

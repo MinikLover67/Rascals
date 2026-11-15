@@ -12,11 +12,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.1.32',
+    title: 'Friends actually show each other online',
+    items: [
+      { text: 'Persistent Nostr channel for presence + friend requests — independent of peer discovery, so two devices on different networks now see each other online (the "both offline" bug)', tag: 'fix' },
+      { text: 'Friend requests land even when the recipient is offline at send time; fetched on next connect', tag: 'new' },
+      { text: 'Changelog now shows only the current version; older release notes link to GitHub', tag: 'improve' },
+    ],
+  },
+  {
     version: '0.1.31',
     title: 'Friend requests reach offline peers',
     items: [
       { text: 'New-update changelog — this window — shown once after an update, never again until the next one', tag: 'new' },
-      { text: 'Friend requests now persist on relays and land when the recipient comes online', tag: 'new' },
       { text: 'Light/dark theme toggle with live preview in Settings → Appearance', tag: 'new' },
       { text: 'Settings header shows the active section; clearer theme cards', tag: 'improve' },
       { text: 'Mutual friend-add no longer needs an app restart', tag: 'fix' },

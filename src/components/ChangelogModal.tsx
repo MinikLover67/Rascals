@@ -25,9 +25,9 @@ export default function ChangelogModal({ appVersion }: { appVersion: string }) {
 
   if (!open) return null
 
-  // Current version first, then the two before it (context for updaters).
-  const entries = CHANGELOG.filter((e) => e.version <= appVersion).slice(0, 3)
-  const visible = entries.length ? entries : CHANGELOG.slice(0, 1)
+  // Only the current version's notes — older versions live on GitHub.
+  const visible = CHANGELOG.filter((e) => e.version === appVersion)
+  const entry = visible[0] ?? CHANGELOG[0]
 
   return (
     <div
@@ -56,26 +56,32 @@ export default function ChangelogModal({ appVersion }: { appVersion: string }) {
           </button>
         </div>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5 scroll-thin">
-          {visible.map((e) => (
-            <div key={e.version}>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold">v{e.version}</h3>
-                <span className="text-xs font-normal text-rascal-dim">{e.title}</span>
-              </div>
-              <ul className="mt-1.5 space-y-1">
-                {e.items.map((it) => {
-                  const st = TAG_STYLE[it.tag]
-                  return (
-                    <li key={it.text} className="flex items-start gap-2 rounded-lg px-1 py-1 text-sm">
-                      <st.icon size={14} className={`mt-0.5 shrink-0 ${st.cls}`} />
-                      <span className="flex-1 leading-relaxed">{it.text}</span>
-                      <span className={`mt-0.5 shrink-0 text-[10px] uppercase tracking-wide ${st.cls}`}>{st.label}</span>
-                    </li>
-                  )
-                })}
-              </ul>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold">v{entry.version}</h3>
+              <span className="text-xs font-normal text-rascal-dim">{entry.title}</span>
             </div>
-          ))}
+            <ul className="mt-1.5 space-y-1">
+              {entry.items.map((it) => {
+                const st = TAG_STYLE[it.tag]
+                return (
+                  <li key={it.text} className="flex items-start gap-2 rounded-lg px-1 py-1 text-sm">
+                    <st.icon size={14} className={`mt-0.5 shrink-0 ${st.cls}`} />
+                    <span className="flex-1 leading-relaxed">{it.text}</span>
+                    <span className={`mt-0.5 shrink-0 text-[10px] uppercase tracking-wide ${st.cls}`}>{st.label}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+          <a
+            href="https://github.com/MinikLover67/Rascals/releases"
+            target="_blank"
+            rel="noreferrer"
+            className="block pt-1 text-center text-[11px] text-rascal-dim underline underline-offset-2 hover:text-rascal-text"
+          >
+            See older versions on GitHub
+          </a>
         </div>
         <div className="flex shrink-0 items-center justify-between gap-2 border-t border-rascal-line px-5 py-3">
           <span className="flex items-center gap-1.5 text-[11px] text-rascal-dim">
