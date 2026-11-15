@@ -15,7 +15,7 @@ function WinButton({
     <button
       onClick={onClick}
       aria-label={label === 'min' ? 'Minimize' : label === 'max' ? 'Maximize' : 'Close'}
-      className={`flex h-9 w-12 items-center justify-center text-white/70 hover:bg-white/25 hover:text-white ${
+      className={`flex h-9 w-12 items-center justify-center text-white/70 transition-colors duration-150 ease-smooth hover:bg-white/25 hover:text-white ${
         close ? 'hover:bg-rascal-red!' : ''
       }`}
     >

@@ -59,10 +59,10 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
   return (
     <div className="relative flex flex-1 items-center justify-center overflow-hidden p-8">
       <DitherBackground />
-      <div className="relative w-full max-w-md rounded-2xl border border-rascal-line bg-rascal-panel/90 p-8 shadow-sm backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-2xl border border-rascal-line bg-rascal-panel/90 p-8 shadow-panel backdrop-blur-sm">
         <div className="mb-4 flex items-center gap-3">
           {/* white glyph needs a colored home on the white card — app-icon chip */}
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rascal-accent">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rascal-accent shadow-lg shadow-rascal-accent/40">
             <LogoMark size={32} />
           </div>
           <div>
@@ -86,14 +86,14 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
           onKeyDown={(e) => e.key === 'Enter' && create()}
           placeholder="e.g. minik"
           data-testid="onboard-name"
-          className="mt-2 w-full rounded-lg border border-rascal-line bg-rascal-bg px-3 py-2 text-sm outline-none focus:border-rascal-accent"
+          className="mt-2 w-full rounded-xl border border-rascal-line bg-rascal-bg px-3 py-2 text-sm outline-none transition-colors duration-150 ease-smooth focus:border-rascal-accent"
         />
         {error && <p className="mt-3 text-sm text-rascal-red">{error}</p>}
         <button
           onClick={create}
           disabled={busy || !name.trim()}
           data-testid="onboard-create"
-          className="mt-4 w-full rounded-lg bg-rascal-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+          className="mt-4 w-full rounded-xl bg-rascal-accent px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-rascal-accent/30 transition-all duration-150 ease-smooth disabled:opacity-40"
         >
           {busy ? 'Creating identity…' : 'Create my identity'}
         </button>
@@ -185,7 +185,7 @@ function CopyInviteCta() {
   return (
     <button
       onClick={() => void copy()}
-      className="mx-auto mt-4 block rounded-xl bg-rascal-accent px-4 py-2 text-sm font-semibold text-white"
+      className="mx-auto mt-4 block rounded-xl bg-rascal-accent px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-rascal-accent/30 transition-all duration-150 ease-smooth"
     >
       {copied ? 'Copied — send it to a friend!' : 'Copy my invite code'}
     </button>
@@ -205,8 +205,8 @@ function Rail() {
         onClick={() => selectServer(null)}
         title="Home - friends and groups"
         className={`flex h-11 w-11 items-center justify-center text-lg font-bold ${
-          selectedServer === null ? 'rounded-2xl bg-rascal-accent text-white' : 'rounded-full rail-chip'
-        } transition-all`}
+          selectedServer === null ? 'rounded-2xl bg-rascal-accent text-white shadow-lg shadow-rascal-accent/40' : 'rounded-full rail-chip'
+        } transition-all duration-150 ease-smooth`}
       >
         R
       </button>
@@ -218,9 +218,9 @@ function Rail() {
           title={s.name}
           className={`flex h-11 w-11 items-center justify-center text-sm font-bold ${
             selectedServer === s.id
-              ? 'rounded-2xl bg-rascal-accent text-white'
+              ? 'rounded-2xl bg-rascal-accent text-white shadow-lg shadow-rascal-accent/40'
               : 'rounded-full rail-chip'
-        } transition-all`}
+        } transition-all duration-150 ease-smooth`}
         >
           {s.name.slice(0, 2).toUpperCase()}
         </button>
@@ -229,7 +229,7 @@ function Rail() {
         onClick={() => setCreating(true)}
         title="Create a server"
         aria-label="Create a server"
-        className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-rascal-line text-rascal-dim transition-[border-radius,color] hover:text-rascal-text"
+        className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-rascal-line text-rascal-dim transition-[border-radius,color,border-color] duration-150 ease-smooth hover:border-rascal-accent/60 hover:text-rascal-text"
       >
         <Plus size={18} />
       </button>

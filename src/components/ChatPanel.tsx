@@ -897,7 +897,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
             onClick={() => fileRef.current?.click()}
             title="Attach files or images (staged until you press Send - E2EE, up to 25 MB)"
             aria-label="Attach files"
-            className="shrink-0 rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-rascal-dim hover:text-rascal-text"
+            className="shrink-0 rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-rascal-dim transition-colors duration-150 ease-smooth hover:bg-white/5 hover:text-rascal-text"
           >
             <Paperclip size={18} />
           </button>
@@ -905,7 +905,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
           <button
             onClick={() => setGifOpen(true)}
             title="Send a GIF via Tenor (needs API key in Settings)"
-            className="shrink-0 rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm text-rascal-dim hover:text-rascal-text"
+            className="shrink-0 rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm text-rascal-dim transition-colors duration-150 ease-smooth hover:bg-white/5 hover:text-rascal-text"
           >
             GIF
           </button>
@@ -922,14 +922,14 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
             }}
             rows={1}
             placeholder={pending.length > 0 ? 'Add a message (optional) — Enter sends everything' : placeholder}
-            className="max-h-32 flex-1 resize-none overflow-y-auto rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm outline-none focus:border-rascal-accent"
+            className="max-h-32 flex-1 resize-none overflow-y-auto rounded-xl border border-rascal-line bg-rascal-panel px-3 py-2 text-sm outline-none transition-colors duration-150 ease-smooth focus:border-rascal-accent"
           />
           <button
             onClick={() => void send()}
             disabled={!draft.trim() && pending.length === 0}
             title="Send"
             aria-label="Send"
-            className="shrink-0 rounded-xl bg-rascal-accent px-3.5 py-2 text-white disabled:opacity-40"
+            className="shrink-0 rounded-xl bg-rascal-accent px-3.5 py-2 text-white shadow-lg shadow-rascal-accent/30 transition-all duration-150 ease-smooth enabled:hover:brightness-110 disabled:opacity-40"
           >
             <SendHorizontal size={18} />
           </button>
