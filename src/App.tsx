@@ -295,11 +295,23 @@ export default function App() {
     }
   }, [identity])
 
-  // Theme + global hotkeys + autostart, all desktop-local.
+  // Theme + custom accent + global hotkeys + autostart, all desktop-local.
   const theme = useApp((s) => s.settings.theme)
+  const accent = useApp((s) => s.settings.accent)
   useEffect(() => {
     document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark'
   }, [theme])
+
+  // Custom accent overrides the theme default. Only well-formed #rrggbb is
+  // applied — a corrupt stored value falls back to the theme accent.
+  useEffect(() => {
+    const root = document.documentElement
+    if (accent && /^#[0-9a-fA-F]{6}$/.test(accent)) {
+      root.style.setProperty('--color-rascal-accent', accent)
+    } else {
+      root.style.removeProperty('--color-rascal-accent')
+    }
+  }, [accent])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

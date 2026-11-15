@@ -78,6 +78,8 @@ export interface Settings {
   /** Force all WebRTC through TURN so peers never see your IP (needs TURN). */
   hideIp: boolean
   theme: ThemeName
+  /** Custom accent color as #rrggbb. null = follow the theme's default accent. */
+  accent: string | null
   soundPack: SoundPackName
   /** Per-event custom sound (IndexedDB file id). Empty = synth default. */
   customSounds: Partial<Record<SoundEvent, string>>
@@ -388,6 +390,7 @@ export const useApp = create<AppState>((set) => ({
     turnPass: '',
     hideIp: false,
     theme: 'light' as const,
+    accent: null as string | null,
     soundPack: 'default' as const,
     customSounds: {},
     notifications: true,

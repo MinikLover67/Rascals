@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Activity,
   Bell,
+  Check,
   Globe,
   Image as ImageIcon,
   Mic,
@@ -23,6 +24,17 @@ import { getVoice } from '../lib/session'
 import { checkForUpdates } from '../lib/updater'
 import { clearCustomSound, importCustomSound, playSound } from '../lib/sound'
 import { useApp, type SoundEvent } from '../store/app'
+
+/** Accent presets: null follows the active theme's default accent. */
+const ACCENT_PRESETS: { id: string; label: string; value: string | null }[] = [
+  { id: 'default', label: 'Theme default', value: null },
+  { id: 'violet', label: 'Violet', value: '#7c6cff' },
+  { id: 'ocean', label: 'Ocean', value: '#4cc4ff' },
+  { id: 'mint', label: 'Mint', value: '#3ddc84' },
+  { id: 'amber', label: 'Amber', value: '#ffb224' },
+  { id: 'rose', label: 'Rose', value: '#ff5d5d' },
+  { id: 'pink', label: 'Pink', value: '#ff7ad9' },
+]
 
 interface DeviceOption {
   id: string
@@ -353,6 +365,60 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                         </button>
                       )
                     })}
+                  </div>
+
+                  {/* Accent color: presets + custom picker, applied live via
+                      --color-rascal-accent on <html> (see App.tsx effect). */}
+                  <div className="mt-3 border-t border-rascal-line p-1.5 pt-3">
+                    <p className="mb-2 px-1 text-xs font-semibold text-rascal-dim">Accent color</p>
+                    <div className="flex flex-wrap items-center gap-2 px-1">
+                      {ACCENT_PRESETS.map((a) => {
+                        const active = (settings.accent ?? null) === a.value
+                        const themeDefault = settings.theme === 'light' ? '#7a4ff0' : '#7c6cff'
+                        return (
+                          <button
+                            key={a.id}
+                            onClick={() => setSettings({ accent: a.value })}
+                            aria-pressed={active}
+                            title={a.label}
+                            className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition-transform hover:scale-105 ${
+                              active ? 'border-rascal-text' : 'border-transparent'
+                            }`}
+                            style={{ backgroundColor: a.value ?? themeDefault }}
+                          >
+                            {active && <Check size={13} className="text-white drop-shadow" />}
+                          </button>
+                        )
+                      })}
+                      <label
+                        title="Custom color"
+                        className="relative h-7 w-7 cursor-pointer rounded-full border-2 border-dashed border-rascal-line transition-transform hover:scale-105"
+                      >
+                        <span
+                          className="block h-4 w-4 rounded-full"
+                          style={{
+                            margin: 'auto',
+                            backgroundColor: settings.accent ?? (settings.theme === 'light' ? '#7a4ff0' : '#7c6cff'),
+                            opacity: settings.accent ? 1 : 0.5,
+                          }}
+                        />
+                        <input
+                          type="color"
+                          value={settings.accent ?? '#7c6cff'}
+                          onChange={(e) => setSettings({ accent: e.target.value })}
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          aria-label="Custom accent color"
+                        />
+                      </label>
+                      {settings.accent && (
+                        <button
+                          onClick={() => setSettings({ accent: null })}
+                          className="ml-1 text-xs text-rascal-dim transition-colors hover:text-rascal-text"
+                        >
+                          Reset to theme default
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </Section>
