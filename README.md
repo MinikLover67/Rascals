@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/branding/logo-mark.svg" alt="Rascals logo" width="128" />
+  <img src="docs/branding/logo-mark-hero.svg" alt="Rascals logo" width="128" />
 </p>
 
 <h1 align="center">Rascals</h1>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Rascals logo">
+  <title>Rascals</title>
+  <defs>
+    <mask id="holes-white">
+      <rect width="256" height="256" fill="white"/>
+      <circle cx="96" cy="96" r="11" fill="black"/>
+      <circle cx="160" cy="160" r="14" fill="black"/>
+    </mask>
+  </defs>
+  <g mask="url(#holes-white)">
+    <!-- encrypted link between the two peers -->
+    <path d="M96 96 L160 160" stroke="#ffffff" stroke-width="30" stroke-linecap="round" fill="none"/>
+    <!-- peer A (you) -->
+    <circle cx="96" cy="96" r="40" fill="#ffffff"/>
+    <!-- peer B (friend) -->
+    <circle cx="160" cy="160" r="40" fill="#ffffff"/>
+  </g>
+  <!-- live / online status -->
+  <circle cx="190" cy="130" r="20" fill="#ffffff" opacity="0.18"/>
+  <circle cx="190" cy="130" r="12" fill="#ffffff"/>
+</svg>
