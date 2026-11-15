@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { Plus, Upload } from 'lucide-react'
+import ChangelogModal from './components/ChangelogModal'
 import ChatPanel from './components/ChatPanel'
 import CreateServerModal from './components/CreateServerModal'
 import DitherBackground from './components/DitherBackground'
@@ -443,6 +444,7 @@ export default function App() {
       ) : identity ? (
         <>
           <UpdateBanner />
+          <ChangelogModal appVersion={__APP_VERSION__} />
           <div className="flex min-h-0 flex-1">
             <Rail />
             <Sidebar />
