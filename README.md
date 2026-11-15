@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/brag.gif" alt="Rascals 20-second demo" width="640" />
+  <video src="docs/brag.mp4" controls loop muted autoplay width="640" alt="Rascals 20-second demo"></video>
 </p>
 
 <p align="center">
