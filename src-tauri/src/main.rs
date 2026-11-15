@@ -5,8 +5,8 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    webview::{PermissionKind, PermissionResponse, WebviewUrl, WebviewWindowBuilder},
-    Manager, WindowEvent,
+    webview::{PermissionKind, PermissionResponse, WebviewWindowBuilder},
+    Manager, WebviewUrl, WindowEvent,
 };
 
 fn show_main(app: &tauri::AppHandle) {
