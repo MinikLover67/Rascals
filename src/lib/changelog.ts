@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.1.33',
+    title: 'Screen sharing: smoother and finally allowed',
+    items: [
+      { text: 'Desktop app now auto-grants mic, camera and screen-capture permissions — screen share no longer silently fails in the installed build', tag: 'fix' },
+      { text: 'Screen share encodes for motion instead of sharpness (contentHint) — cursor movement and video playback no longer stutter', tag: 'improve' },
+      { text: 'Capture requests 30 fps (up to 60) at your display resolution for a smoother stream', tag: 'improve' },
+    ],
+  },
+  {
     version: '0.1.32',
     title: 'Friends actually show each other online',
     items: [

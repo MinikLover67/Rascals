@@ -5,6 +5,7 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
+    webview::{PermissionKind, PermissionResponse, WebviewUrl, WebviewWindowBuilder},
     Manager, WindowEvent,
 };
 
@@ -60,6 +61,27 @@ fn main() {
                 })
                 .build(app)?;
             app.manage(tray);
+            // The main window is created here instead of tauri.conf.json so we
+            // can attach the permission handler. Without it, voice + screen
+            // sharing silently fails: WebView2 never surfaces mic/camera
+            // prompts, and on Linux WebKitGTK's default for unanswered
+            // permission requests is Deny.
+            WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+                .title("Rascals")
+                .inner_size(1280.0, 800.0)
+                .min_inner_size(940.0, 600.0)
+                .decorations(false)
+                // conf used dragDropEnabled:false — HTML5 drag events stay on.
+                .disable_drag_drop_handler()
+                .on_permission_request(|_, kind| match kind {
+                    // Voice needs the mic; screen share needs display capture.
+                    // Camera stays allowed for future video calls.
+                    PermissionKind::Microphone
+                    | PermissionKind::Camera
+                    | PermissionKind::DisplayCapture => PermissionResponse::Allow,
+                    _ => PermissionResponse::Default,
+                })
+                .build()?;
             Ok(())
         })
         .on_window_event(|window, event| {

@@ -649,7 +649,17 @@ export function bindVoice(deps: VoiceDeps) {
       if (!dm.getDisplayMedia) return 'Screen sharing is not supported here.'
       // audio:true = include system audio when the picker offers it (video
       // sites, games). Absence is fine — video-only share still works.
-      stream = await dm.getDisplayMedia({ video: true, audio: true })
+      // frameRate ideal 30 (max 60) asks the capture pipeline for motion, not
+      // the browser's often-sluggish screen default; width/height stay ideals
+      // so 4K displays don't get force-downscaled.
+      stream = await dm.getDisplayMedia({
+        video: {
+          frameRate: { ideal: 30, max: 60 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: true,
+      })
     } catch {
       return 'Screen share was cancelled or unavailable.'
     }
@@ -657,6 +667,18 @@ export function bindVoice(deps: VoiceDeps) {
     if (tracks.length === 0) {
       stream.getTracks().forEach((t) => t.stop())
       return 'No tracks.'
+    }
+    // Screen-capture tracks default to contentHint 'detail' (sharpness over
+    // frame rate) which makes cursor movement and video playback stutter.
+    // 'motion' flips the encoder to keep frames flowing — the single biggest
+    // smoothness lever for shares.
+    const video = stream.getVideoTracks()[0]
+    if (video && 'contentHint' in video) {
+      try {
+        video.contentHint = 'motion'
+      } catch {
+        // browser may reject the hint — sharing still works
+      }
     }
     try {
       const proms = tracks.flatMap((t) => room!.addTrack(t, stream))
@@ -666,7 +688,6 @@ export function bindVoice(deps: VoiceDeps) {
       return e instanceof Error ? e.message : 'Could not share.'
     }
     screenStream = stream
-    const video = stream.getVideoTracks()[0]
     if (video) {
       video.onended = () => {
         void stopShare()
