@@ -2,9 +2,11 @@ import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { Plus, Upload } from 'lucide-react'
 import ChatPanel from './components/ChatPanel'
 import CreateServerModal from './components/CreateServerModal'
+import DitherBackground from './components/DitherBackground'
 import FriendsPanel from './components/FriendsPanel'
 import GroupsPanel from './components/GroupsPanel'
 import IncomingCallModal from './components/IncomingCallModal'
+import LogoMark from './components/LogoMark'
 import ServerChannels from './components/ServerChannels'
 import TitleBar from './components/TitleBar'
 import Toasts from './components/Toasts'
@@ -54,10 +56,20 @@ function Onboarding({ onDone }: { onDone: (id: Identity) => void }) {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center p-8">
-      <div className="w-full max-w-md rounded-2xl border border-rascal-line bg-rascal-panel p-8">
-        <h1 className="text-2xl font-bold">Welcome to Rascals</h1>
-        <p className="mt-2 text-sm text-rascal-dim">
+    <div className="relative flex flex-1 items-center justify-center overflow-hidden p-8">
+      <DitherBackground />
+      <div className="relative w-full max-w-md rounded-2xl border border-rascal-line bg-rascal-panel/90 p-8 shadow-sm backdrop-blur-sm">
+        <div className="mb-4 flex items-center gap-3">
+          {/* white glyph needs a colored home on the white card — app-icon chip */}
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rascal-accent">
+            <LogoMark size={32} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Welcome to Rascals</h1>
+            <p className="text-xs text-rascal-dim">private p2p chat — no accounts, no servers</p>
+          </div>
+        </div>
+        <p className="text-sm text-rascal-dim">
           Private peer-to-peer chat. No accounts, no message server — your
           identity is a keypair stored only on this PC.
         </p>
@@ -134,8 +146,9 @@ function MainPanel() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-rascal-dim">
-      <div>
+    <div className="relative flex flex-1 items-center justify-center overflow-hidden p-8 text-center text-sm text-rascal-dim">
+      <DitherBackground />
+      <div className="relative">
         <p className="text-base font-semibold text-rascal-text">
           {friends.length === 0
             ? 'Add a friend to get started.'
@@ -191,7 +204,7 @@ function Rail() {
         onClick={() => selectServer(null)}
         title="Home - friends and groups"
         className={`flex h-11 w-11 items-center justify-center text-lg font-bold ${
-          selectedServer === null ? 'rounded-2xl bg-rascal-accent' : 'rounded-full bg-white/10 text-rascal-dim hover:rounded-2xl hover:text-rascal-text'
+          selectedServer === null ? 'rounded-2xl bg-rascal-accent text-white' : 'rounded-full rail-chip'
         } transition-all`}
       >
         R
@@ -204,9 +217,9 @@ function Rail() {
           title={s.name}
           className={`flex h-11 w-11 items-center justify-center text-sm font-bold ${
             selectedServer === s.id
-              ? 'rounded-2xl bg-rascal-accent'
-              : 'rounded-full bg-white/10 text-rascal-dim hover:rounded-2xl hover:text-rascal-text'
-          } transition-all`}
+              ? 'rounded-2xl bg-rascal-accent text-white'
+              : 'rounded-full rail-chip'
+        } transition-all`}
         >
           {s.name.slice(0, 2).toUpperCase()}
         </button>

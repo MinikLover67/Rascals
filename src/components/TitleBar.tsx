@@ -1,5 +1,6 @@
 import { Minus, Square, X } from 'lucide-react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import LogoMark from './LogoMark'
 
 function WinButton({
   label,
@@ -14,7 +15,7 @@ function WinButton({
     <button
       onClick={onClick}
       aria-label={label === 'min' ? 'Minimize' : label === 'max' ? 'Maximize' : 'Close'}
-      className={`flex h-9 w-12 items-center justify-center text-rascal-dim hover:bg-white/10 hover:text-rascal-text ${
+      className={`flex h-9 w-12 items-center justify-center text-white/70 hover:bg-white/25 hover:text-white ${
         close ? 'hover:bg-rascal-red!' : ''
       }`}
     >
@@ -39,17 +40,16 @@ export default function TitleBar() {
       data-tauri-drag-region
       className="flex h-9 shrink-0 items-stretch justify-between border-b border-rascal-line bg-rascal-rail pl-3"
     >
-      <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs font-semibold tracking-wide">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-rascal-accent text-[11px] font-bold text-white">
-          R
-        </span>
+      {/* rail is dark (dark theme) or purple (light theme) — white reads on both */}
+      <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs font-semibold tracking-wide text-white">
+        <LogoMark size={18} className="shrink-0" />
         <span className="shrink-0">Rascals</span>
-        <span className="hidden shrink-0 whitespace-nowrap rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-rascal-dim min-[420px]:inline">
+        <span className="rail-chip hidden shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[10px] min-[420px]:inline">
           P2P · Phase 0
         </span>
         <span
           title="Rascals is in beta: still testing, bugs to fix. Report issues on GitHub."
-          className="rounded bg-rascal-amber/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-rascal-amber"
+          className="rail-chip rounded px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.14em]"
         >
           BETA
         </span>

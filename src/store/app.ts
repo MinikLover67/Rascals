@@ -321,7 +321,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   avatar: null,
   banner: null,
   themePrimary: '#7c6cff',
-  themeAccent: '#3ddc84',
+  themeAccent: '#a78bfa',
   nameStyle: 'default',
   updatedAt: 0,
 }
@@ -387,7 +387,7 @@ export const useApp = create<AppState>((set) => ({
     turnUser: '',
     turnPass: '',
     hideIp: false,
-    theme: 'dark' as const,
+    theme: 'light' as const,
     soundPack: 'default' as const,
     customSounds: {},
     notifications: true,

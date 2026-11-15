@@ -28,8 +28,10 @@ let lastLobbyRejoin = 0
 /** Random per app launch — tells two diagnostics captures apart. */
 let sessionNonce = ''
 
-/** Outgoing friend requests re-knock every minute while still pending. */
-const RETRY_MS = 60000
+/** Outgoing friend requests re-knock every 30 s while still pending.
+ *  Ephemeral Nostr events have no store-and-forward, so we keep knocking
+ *  (and stay in the target's lobby) until the recipient is online to catch one. */
+const RETRY_MS = 30000
 
 export function getP2P(): P2P | null {
   return p2p
@@ -170,6 +172,14 @@ export async function startSession(identity: Identity): Promise<void> {
           if (outgoing) {
             s.removeRequest(userId)
             s.addFriend({ userId, displayName: name, online: false, addedAt: Date.now() })
+            // Complete the handshake on the wire too, not just in state: join
+            // the pairwise room and announce presence so both sides flip online
+            // without a restart. Also stop knocking — they're a friend now.
+            void getP2P()?.stopFriendRequest(userId).catch(() => {})
+            void getP2P()
+              ?.ensureDmRoom(userId)
+              .then(() => getP2P()?.broadcastHellos())
+              .catch(() => {})
             return
           }
           const known = s.requests.some((r) => r.userId === userId && r.direction === 'in')
@@ -196,6 +206,8 @@ export async function startSession(identity: Identity): Promise<void> {
           if (outgoing) {
             s.removeRequest(userId)
             s.addFriend({ userId, displayName: name, online: true, addedAt: Date.now() })
+            // Friendship completed via hello — stop knocking at their lobby.
+            void getP2P()?.stopFriendRequest(userId).catch(() => {})
           }
           return
         }
@@ -232,6 +244,13 @@ export async function startSession(identity: Identity): Promise<void> {
   for (const f of s.friends) await inst.ensureDmRoom(f.userId)
   for (const r of s.requests)
     if (r.direction === 'out') await inst.ensureDmRoom(r.userId)
+  // Knock immediately for pending outgoing requests — don't wait up to a
+  // minute for the first retry. The recipient may be online right now.
+  for (const r of s.requests) {
+    if (r.direction !== 'out') continue
+    if (s.friends.some((f) => f.userId === r.userId)) continue
+    void inst.sendFriendRequest(r.userId).catch(() => {})
+  }
   await gapi.joinAll()
   await sapi.joinAll()
   // Keep knocking for pending outgoing requests (the other side may come
@@ -240,11 +259,15 @@ export async function startSession(identity: Identity): Promise<void> {
   retryTimer = window.setInterval(() => {
     try {
       const st = useApp.getState()
+      const pendingOut = new Set<string>()
       for (const r of st.requests) {
         if (r.direction !== 'out') continue
         if (st.friends.some((f) => f.userId === r.userId)) continue
+        pendingOut.add(r.userId)
         void p2p?.sendFriendRequest(r.userId).catch(() => {})
       }
+      // Drop lobby-send rooms for requests that got fulfilled/removed.
+      p2p?.reconcileLobbySends(pendingOut)
     } catch {
       // retry must never break the app
     }
@@ -305,6 +328,14 @@ function maybeWedgeHeal(minAgeMs: number): void {
 function refreshHellos(): void {
   try {
     void getP2P()?.broadcastHellos().catch(() => {})
+    // Re-knock pending outgoing requests — the recipient may have just come
+    // online while we were away. Cheap: cached rooms just re-publish.
+    const st = useApp.getState()
+    for (const r of st.requests) {
+      if (r.direction !== 'out') continue
+      if (st.friends.some((f) => f.userId === r.userId)) continue
+      void getP2P()?.sendFriendRequest(r.userId).catch(() => {})
+    }
     maybeWedgeHeal(30000)
     // Sleep/wake is the classic room killer — rejoin the lobby whenever the
     // user returns (gated so alt-tabbing doesn't churn).
@@ -357,13 +388,20 @@ export async function broadcastOwnProfile(): Promise<void> {
   await getChat()?.broadcastOwnProfile().catch(() => {})
 }
 
-/** Accept an incoming request: befriend + join pairwise room (hellos do the rest). */
+/** Accept an incoming request: befriend + join pairwise room, then announce
+ *  presence so the requester flips online without a restart. Also stop any
+ *  outgoing knock to them (mutual case). */
 export async function acceptRequest(userId: string, displayName: string): Promise<void> {
   const s = useApp.getState()
   s.removeRequest(userId)
   s.dropRecent(userId)
   s.addFriend({ userId, displayName: shapeDisplayName(displayName) || shortUid(userId), online: false, addedAt: Date.now() })
   await getP2P()?.ensureDmRoom(userId)
+  // Stop knocking if we also had a pending outgoing request to them.
+  void getP2P()?.stopFriendRequest(userId).catch(() => {})
+  // Announce presence in the pairwise room so the requester sees us online
+  // immediately (don't rely on their onPeerJoin catching our join).
+  void getP2P()?.broadcastHellos().catch(() => {})
   await getChat()?.peerBecameAvailable(userId).catch(() => {})
 }
 
@@ -385,6 +423,7 @@ export async function unfriend(userId: string): Promise<void> {
   const s = useApp.getState()
   const f = s.friends.find((x) => x.userId === userId)
   getP2P()?.leaveDmRoom(userId)
+  void getP2P()?.stopFriendRequest(userId).catch(() => {})
   lastSeen.delete(userId)
   s.removeRequest(userId)
   s.setTyping(userId, 0)

@@ -5,11 +5,13 @@ import {
   Globe,
   Image as ImageIcon,
   Mic,
+  Moon,
   Palette,
   Play,
   Power,
   RefreshCw,
   RotateCcw,
+  Sun,
   Upload,
   User,
   Volume2,
@@ -221,6 +223,8 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
   const sel =
     'w-full rounded-lg border border-rascal-line bg-rascal-bg px-3 py-1.5 text-sm outline-none focus:border-rascal-accent'
 
+  const activeSection = SECTIONS.find((s) => s.id === section)
+
   function saveVoice() {
     setSettings({ turnUrl: turnUrl.trim(), turnUser: turnUser.trim(), turnPass })
     getVoice()?.setSpeaker(useApp.getState().settings.speakerId)
@@ -254,7 +258,14 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
         </nav>
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex shrink-0 items-center gap-2 border-b border-rascal-line px-5 py-3">
-            <h2 className="flex-1 text-base font-bold">Settings</h2>
+            <h2 className="text-base font-bold">Settings</h2>
+            {activeSection && (
+              <span className="flex items-center gap-1.5 rounded-md bg-white/5 px-2 py-1 text-xs text-rascal-dim">
+                <activeSection.icon size={13} className="text-rascal-accent" />
+                {activeSection.label}
+              </span>
+            )}
+            <span className="flex-1" />
             {appVersion && (
               <span className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-rascal-dim">
                 v{appVersion} beta
@@ -278,20 +289,71 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
 
             {section === 'appearance' && (
               <Section icon={Palette} title="Appearance">
-                <div className="flex gap-2 p-1.5">
-                  {(['dark', 'light'] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setSettings({ theme: t })}
-                      className={`flex-1 rounded-lg border px-3 py-2 text-sm capitalize ${
-                        settings.theme === t
-                          ? 'border-rascal-accent bg-rascal-accent/15 font-semibold'
-                          : 'border-rascal-line hover:border-rascal-dim'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
+                <div className="p-1.5">
+                  <p className="mb-2 px-1 text-xs font-semibold text-rascal-dim">Theme</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        {
+                          id: 'dark',
+                          label: 'Dark',
+                          hint: 'black rail · night',
+                          Icon: Moon,
+                          rail: '#000000',
+                          panel: '#101014',
+                          text: '#e8e9ee',
+                          accent: '#7c6cff',
+                        },
+                        {
+                          id: 'light',
+                          label: 'Light',
+                          hint: 'lilac rail · day',
+                          Icon: Sun,
+                          rail: '#a78bfa',
+                          panel: '#ffffff',
+                          text: '#241b3a',
+                          accent: '#7a4ff0',
+                        },
+                      ] as const
+                    ).map((t) => {
+                      const active = settings.theme === t.id
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => setSettings({ theme: t.id })}
+                          aria-pressed={active}
+                          className={`group flex flex-col gap-2 rounded-lg border p-2 text-left transition-colors ${
+                            active
+                              ? 'border-rascal-accent bg-rascal-accent/15'
+                              : 'border-rascal-line hover:border-rascal-dim'
+                          }`}
+                        >
+                          {/* mini live preview: rail + panel + sample text + accent dot */}
+                          <div
+                            className="flex h-12 overflow-hidden rounded-md border border-black/10"
+                            style={{ backgroundColor: t.panel }}
+                          >
+                            <div className="w-3 shrink-0" style={{ backgroundColor: t.rail }} />
+                            <div className="flex flex-1 flex-col justify-center gap-1 px-1.5">
+                              <div className="h-1.5 w-8 rounded-full" style={{ backgroundColor: t.text, opacity: 0.85 }} />
+                              <div className="flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: t.accent }} />
+                                <span className="h-1.5 w-5 rounded-full" style={{ backgroundColor: t.text, opacity: 0.4 }} />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <t.Icon
+                              size={14}
+                              className={active ? 'text-rascal-accent' : 'text-rascal-dim'}
+                            />
+                            <span className={`text-sm ${active ? 'font-semibold' : ''}`}>{t.label}</span>
+                            <span className="ml-auto text-[10px] font-normal text-rascal-dim">{t.hint}</span>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               </Section>
             )}

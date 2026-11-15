@@ -539,7 +539,7 @@ export class P2P {
   private lobby: AnyRoom | null = null
   private lobbySends = new Map<
     string,
-    (data: HelloPayload, target?: string) => Promise<void>
+    { send: (data: HelloPayload, target?: string) => Promise<void>; room: AnyRoom }
   >()
   private dmRooms = new Map<string, DmEntry>()
   private groupRooms = new Map<string, DmEntry>()
@@ -654,14 +654,14 @@ export class P2P {
     const roomId = lobbyRoomFor(targetUserId)
     const existing = this.lobbySends.get(roomId)
     if (existing) {
-      await existing(payload)
+      await existing.send(payload)
       return
     }
     const room = joinRoom(opts(), roomId)
     const freq = room.makeAction<HelloPayload>('freq')
     const send = (data: HelloPayload, target?: string): Promise<void> =>
       target ? freq.send(data, { target }) : freq.send(data)
-    this.lobbySends.set(roomId, send)
+    this.lobbySends.set(roomId, { send, room })
     // Targeted send on discovery (avoids spamming other requesters),
     // plus one broadcast in case discovery already happened.
     room.onPeerJoin = (peerId: string) => {
@@ -670,11 +670,46 @@ export class P2P {
     setTimeout(() => {
       void send(payload)
     }, 5000)
-    // This was a one-shot visit — leave after a while. Re-sent on retry.
-    setTimeout(() => {
-      void room.leave()
-      this.lobbySends.delete(roomId)
-    }, 45000)
+    // Stay in the target's lobby for the lifetime of the pending request —
+    // ephemeral Nostr events have no store-and-forward, so a knock only lands
+    // if the recipient's subscription is open the instant we publish. Keeping
+    // the room joined means onPeerJoin re-fires the targeted knock whenever
+    // the recipient comes online, instead of only during a 45 s window.
+    // Cleanup happens via stopFriendRequest / reconcileLobbySends when the
+    // request is fulfilled or dropped.
+  }
+
+  /** Stop knocking at a target's lobby (request fulfilled or dropped). */
+  async stopFriendRequest(targetUserId: string): Promise<void> {
+    const roomId = lobbyRoomFor(targetUserId)
+    const entry = this.lobbySends.get(roomId)
+    if (!entry) return
+    this.lobbySends.delete(roomId)
+    try {
+      await entry.room.leave()
+    } catch {
+      // already gone
+    }
+  }
+
+  /** Leave lobby-send rooms for userIds that are no longer pending outgoing
+   * requests (accepted, mutual-completed, or unfriended). Called from the
+   * retry heartbeat so fulfilled requests don't leak rooms forever. */
+  reconcileLobbySends(pendingOut: Set<string>): void {
+    for (const [roomId, entry] of [...this.lobbySends.entries()]) {
+      // roomId is lobbyRoomFor(target) = `rascals-lobby:<target>`; extract target
+      const target = roomId.startsWith('rascals-lobby:')
+        ? roomId.slice('rascals-lobby:'.length)
+        : ''
+      if (target && !pendingOut.has(target)) {
+        this.lobbySends.delete(roomId)
+        try {
+          void entry.room.leave()
+        } catch {
+          // already gone
+        }
+      }
+    }
   }
 
   /** Join (or reuse) the pairwise DM room for a friend. */
