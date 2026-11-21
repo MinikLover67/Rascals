@@ -38,12 +38,60 @@
   there is no central database of your conversations to leak, sell or subpoena.
 - **Decentralized signaling.** Invite codes work across the internet: different
   Wi-Fi, different cities — if you're both online, you connect.
-- **Strict NAT?** Add a TURN server in Settings and media still stays
-  end-to-end encrypted through it.
+- **Strict NAT?** Rascals ships with a built-in fallback TURN relay, so calls
+  connect out of the box. Prefer zero third parties? Set your own TURN in
+  Settings (media stays end-to-end encrypted either way).
 - **Signed updates, no tracking.** Every copy polls `latest.json` on this repo
   (daily + on demand in Settings), verifies the minisign signature against a
   baked-in public key, then installs and restarts. No accounts, no tracking —
   just one static file.
+
+## Honest limitations (and what exists today)
+
+Rascals is serverless by design — some trade-offs are permanent, others are on
+the roadmap. What you should know before trusting it with anything serious:
+
+**Already handled**
+
+- **Offline messages.** Chats sent to an offline friend are queued locally and
+  delivered automatically the moment they come back online (`queued` → `sent`
+  → `delivered`). No server needed — but the sender's app must stay running.
+- **Background operation.** Closing the window minimizes to the tray; the app
+  keeps receiving messages and notifications, including via autostart.
+- **Backups.** Profile → "Full backup" exports identity, contacts, servers,
+  group keys and chat history as one JSON file; "Restore backup" imports it.
+  Keep the file private — it contains your secret key.
+- **App lock.** Settings → Security: optional PIN (salted SHA-256, local only)
+  required on every start, with escalating cooldown against guessing.
+- **Strict NAT / firewalls.** Built-in TURN fallback covers symmetric NAT;
+  "Hide my IP" relays everything with zero setup.
+
+**Design trade-offs (inherent to serverless P2P)**
+
+- **Both online for live chat.** Delivery needs the sender's app running until
+  the receiver returns; there is no third-party store-and-forward, by design.
+- **IP addresses between peers.** WebRTC peers see each other's IP unless you
+  enable "Hide my IP" (relay-only). There is no onion routing — yet.
+- **Large voice groups.** Voice is a full mesh; every participant uploads to
+  everyone. Fine for a handful of people, not for 50.
+- **No accounts = no cloud sync.** Use Full backup to move between PCs.
+
+**On the roadmap**
+
+- Mobile apps (iOS/Android) — blocked by WebRTC background limits on iOS.
+- Webcam calls: camera video in calls/channels is implemented; multi-party
+  video layouts are next.
+- Resume of interrupted file transfers (large files re-stream on reconnect
+  today, but there is no partial-resume mid-transfer yet).
+- Richer server moderation (roles, logs, moderation when the creator is
+  offline).
+- Independent third-party security audit — today the published self-audit
+  ([SECURITY.md](SECURITY.md)) is the reference.
+
+**Windows-only today.** Linux support was dropped (WebKitGTK differences);
+macOS is not signed/notarized. Windows SmartScreen may warn on the unsigned
+installer — the releases are built by CI from this repo, and the update
+signature is what matters. Code-signing certificates are on the roadmap.
 
 ## Install on Windows
 

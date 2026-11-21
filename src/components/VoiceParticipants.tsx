@@ -25,9 +25,11 @@ function VideoTile({ stream, name, local }: { stream: MediaStream; name: string;
 export default function VoiceParticipants() {
   const participants = useApp((s) => s.voice.participants)
   const sharing = useApp((s) => s.voice.sharing)
+  const camOn = useApp((s) => s.voice.camOn)
   const videosRev = useApp((s) => s.voice.videosRev)
   const [videos, setVideos] = useState<Array<{ peerId: string; name: string; stream: MediaStream }>>([])
   const [localScreen, setLocalScreen] = useState<MediaStream | null>(null)
+  const [localCam, setLocalCam] = useState<MediaStream | null>(null)
 
   useEffect(() => {
     let live = true
@@ -36,6 +38,7 @@ export default function VoiceParticipants() {
       const api = getVoice()
       setVideos(api?.getRemoteVideos() ?? [])
       setLocalScreen(api?.getLocalScreen() ?? null)
+      setLocalCam(api?.getLocalCamera() ?? null)
     }
     refresh()
     // Reactive (videosRev bumps on arrive/end/preview) + a slow safety poll
@@ -45,7 +48,7 @@ export default function VoiceParticipants() {
       live = false
       window.clearInterval(t)
     }
-  }, [videosRev, participants.length, sharing])
+  }, [videosRev, participants.length, sharing, camOn])
 
   if (participants.length === 0) return null
 
@@ -67,9 +70,10 @@ export default function VoiceParticipants() {
           </span>
         ))}
       </div>
-      {(videos.length > 0 || localScreen) && (
+      {(videos.length > 0 || localScreen || localCam) && (
         <div className="mt-2 grid grid-cols-2 gap-2">
-          {localScreen && <VideoTile stream={localScreen} name="You" local />}
+          {localCam && <VideoTile stream={localCam} name="You (camera)" local />}
+          {localScreen && <VideoTile stream={localScreen} name="You (screen)" local />}
           {videos.map((v) => (
             <VideoTile key={v.peerId} stream={v.stream} name={v.name} />
           ))}

@@ -54,6 +54,8 @@ export function bindVoice(deps: VoiceDeps) {
   let roomKind: 'call' | 'channel' | null = null
   let localStream: MediaStream | null = null
   let screenStream: MediaStream | null = null
+  /** Camera (webcam) stream, sent alongside mic like a screen share. */
+  let camStream: MediaStream | null = null
   let audioCtx: AudioContext | null = null
   const analysers = new Map<string, { analyser: AnalyserNode; data: Uint8Array }>()
   const remoteAudio = new Map<string, HTMLAudioElement>()
@@ -322,6 +324,16 @@ export function bindVoice(deps: VoiceDeps) {
             }
           }
         }
+        if (camStream) {
+          for (const track of camStream.getTracks()) {
+            try {
+              const proms = r.addTrack(track, camStream, { target: peerId })
+              void Promise.all(proms.map((p) => p.catch(() => {})))
+            } catch {
+              // will retry on next join event
+            }
+          }
+        }
         void broadcastHello(peerId)
       }
       r.onPeerLeave = (peerId: string) => {
@@ -409,6 +421,17 @@ export function bindVoice(deps: VoiceDeps) {
       }
     })
     localStream = null
+    if (camStream) {
+      camStream.getTracks().forEach((t) => {
+        try {
+          t.stop()
+        } catch {
+          // ignore
+        }
+      })
+      camStream = null
+      useApp.getState().setVoice({ camOn: false })
+    }
     if (screenStream) {
       screenStream.getTracks().forEach((t) => {
         try {
@@ -610,6 +633,7 @@ export function bindVoice(deps: VoiceDeps) {
     const v = useApp.getState().voice
     if (!v.channel) return
     if (v.sharing) await stopShare()
+    if (v.camOn) await stopCamera()
     leaveRoomOnly()
     stopTracks()
     useApp.getState().resetVoice()
@@ -725,6 +749,72 @@ export function bindVoice(deps: VoiceDeps) {
     await broadcastState()
   }
 
+  /** Turn on the webcam in the active call/channel. Video rides the same
+   * track path as screen share — remotes see it as a video tile. */
+  async function startCamera(): Promise<string | null> {
+    if (!room) return 'Join voice first.'
+    if (camStream) return null
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+        audio: false,
+      })
+    } catch {
+      return 'Camera unavailable - check permissions or close other apps using it.'
+    }
+    if (stream.getVideoTracks().length === 0) {
+      stream.getTracks().forEach((t) => t.stop())
+      return 'No camera found.'
+    }
+    const tracks = stream.getTracks()
+    try {
+      const proms = tracks.flatMap((t) => room!.addTrack(t, stream))
+      await Promise.all(proms.map((p) => p.catch(() => {})))
+    } catch (e) {
+      stream.getTracks().forEach((t) => t.stop())
+      return e instanceof Error ? e.message : 'Could not start camera.'
+    }
+    camStream = stream
+    tracks[0].onended = () => {
+      void stopCamera()
+    }
+    useApp.getState().setVoice({ camOn: true })
+    bumpVideos()
+    await broadcastState()
+    return null
+  }
+
+  async function stopCamera(): Promise<void> {
+    if (!room || !camStream) {
+      useApp.getState().setVoice({ camOn: false })
+      bumpVideos()
+      return
+    }
+    for (const track of camStream.getTracks()) {
+      try {
+        room.removeTrack(track)
+      } catch {
+        // ignore
+      }
+    }
+    camStream.getTracks().forEach((t) => {
+      try {
+        t.stop()
+      } catch {
+        // ignore
+      }
+    })
+    camStream = null
+    useApp.getState().setVoice({ camOn: false })
+    bumpVideos()
+    await broadcastState()
+  }
+
+  function getLocalCamera(): MediaStream | null {
+    return camStream
+  }
+
   function handleSignal(
     from: string,
     kind: 'offer' | 'accept' | 'decline' | 'hangup',
@@ -804,6 +894,9 @@ export function bindVoice(deps: VoiceDeps) {
     setSpeaker,
     startShare,
     stopShare,
+    startCamera,
+    stopCamera,
+    getLocalCamera,
     handleSignal,
     getRemoteVideos,
     getLocalScreen,

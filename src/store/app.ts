@@ -77,9 +77,15 @@ export interface Settings {
   turnPass: string
   /** Force all WebRTC through TURN so peers never see your IP (needs TURN). */
   hideIp: boolean
+  /** Use the built-in public TURN fallback when no personal TURN is set. */
+  defaultTurn: boolean
   theme: ThemeName
   /** Custom accent color as #rrggbb. null = follow the theme's default accent. */
   accent: string | null
+  /** Require a PIN on app start (sha256(salt + pin) hex — never plaintext). */
+  lockEnabled: boolean
+  lockHash: string | null
+  lockSalt: string | null
   soundPack: SoundPackName
   /** Per-event custom sound (IndexedDB file id). Empty = synth default. */
   customSounds: Partial<Record<SoundEvent, string>>
@@ -118,6 +124,8 @@ export interface VoiceState {
   muted: boolean
   deafened: boolean
   sharing: boolean
+  /** Camera (webcam video) is being sent in the current call/channel. */
+  camOn: boolean
   participants: VoiceParticipant[]
   /** Bumped whenever screen-share tiles change (arrived/ended/preview). */
   videosRev: number
@@ -290,6 +298,28 @@ const SERVERS_KEY = 'rascals.servers.v1'
 const PROFILE_KEY = 'rascals.profile.v1'
 const MAX_STORED_PER_CHAT = 2000
 
+/** Every localStorage bucket a full backup must carry (friends, servers,
+ * group + friend crypto keys, messages, settings, profile look). Used by
+ * lib/backup.ts — single source of truth so new buckets can't be forgotten. */
+export const BACKUP_KEYS = [
+  FRIENDS_KEY,
+  REQUESTS_KEY,
+  RECENT_KEY,
+  FAVORITES_KEY,
+  MESSAGES_KEY,
+  DRAFTS_KEY,
+  LASTREAD_KEY,
+  REACTIONS_KEY,
+  PINS_KEY,
+  FILES_KEY,
+  SETTINGS_KEY,
+  GROUPS_KEY,
+  GKEYS_KEY,
+  FKEYS_KEY,
+  SERVERS_KEY,
+  PROFILE_KEY,
+] as const
+
 function load<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key)
@@ -389,8 +419,12 @@ export const useApp = create<AppState>((set) => ({
     turnUser: '',
     turnPass: '',
     hideIp: false,
+    defaultTurn: true,
     theme: 'light' as const,
     accent: null as string | null,
+    lockEnabled: false,
+    lockHash: null as string | null,
+    lockSalt: null as string | null,
     soundPack: 'default' as const,
     customSounds: {},
     notifications: true,
@@ -404,7 +438,7 @@ export const useApp = create<AppState>((set) => ({
   groupOnline: {},
   gkeys: load<AppState['gkeys']>(GKEYS_KEY, { my: {}, peers: {} }),
   fkeys: load<Record<string, string>>(FKEYS_KEY, {}),
-  voice: { call: null, channel: null, muted: false, deafened: false, sharing: false, participants: [], videosRev: 0 },
+  voice: { call: null, channel: null, muted: false, deafened: false, sharing: false, camOn: false, participants: [], videosRev: 0 },
   availableUpdate: null,
   toasts: [],
   pushToast: (t) =>
@@ -597,7 +631,7 @@ export const useApp = create<AppState>((set) => ({
   bumpVideosRev: () =>
     set((s) => ({ voice: { ...s.voice, videosRev: s.voice.videosRev + 1 } })),
   resetVoice: () =>
-    set({ voice: { call: null, channel: null, muted: false, deafened: false, sharing: false, participants: [], videosRev: 0 } }),
+    set({ voice: { call: null, channel: null, muted: false, deafened: false, sharing: false, camOn: false, participants: [], videosRev: 0 } }),
   setAvailableUpdate: (availableUpdate) => set({ availableUpdate }),
   dismissUpdate: () => set({ availableUpdate: null }),
   upsertMessage: (m) =>

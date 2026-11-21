@@ -25,7 +25,7 @@ const SIGNAL_RELAYS = [
 ]
 
 export interface TurnServer {
-  urls: string
+  urls: string | string[]
   username?: string
   credential?: string
 }
@@ -37,6 +37,21 @@ export interface RoomOpts {
   rtcConfig?: { iceTransportPolicy?: RTCIceTransportPolicy; iceServers?: Array<{ urls: string | string[] }> }
 }
 
+/** Built-in TURN fallback (metered.ca "Open Relay Project", free public
+ * service). Lets strict-NAT / firewall networks connect out of the box and
+ * makes "Hide my IP" usable without self-hosting. Trade-off: media can
+ * traverse a third-party relay (still E2E-encrypted by Rascals' own layer).
+ * Users who want zero third parties can turn it off or set their own TURN. */
+export const BUILTIN_TURN: TurnServer = {
+  urls: [
+    'turn:openrelay.metered.ca:80',
+    'turn:openrelay.metered.ca:443',
+    'turn:openrelay.metered.ca:443?transport=tcp',
+  ],
+  username: 'openrelayproject',
+  credential: 'openrelayproject',
+}
+
 /** Room options from explicit settings (param, not store import — keeps the
  * module graph acyclic: store -> p2p -> relays, never back). */
 export function roomOpts(t: {
@@ -44,6 +59,8 @@ export function roomOpts(t: {
   turnUser: string
   turnPass: string
   hideIp: boolean
+  /** Use the built-in public TURN when no personal TURN is configured. */
+  defaultTurn: boolean
 }): RoomOpts {
   const opts: RoomOpts = {
     appId: APP_ID,
@@ -64,13 +81,24 @@ export function roomOpts(t: {
     }
     return opts
   }
+  if (t.hideIp && t.defaultTurn) {
+    // Relay-only through the built-in TURN: hide IP works with zero setup.
+    opts.turnConfig = [BUILTIN_TURN]
+    opts.rtcConfig = { iceTransportPolicy: 'relay' }
+    return opts
+  }
   if (!t.hideIp) {
     // Default path: free public STUN so server-reflexive candidates exist.
     // Without this, same-NAT peers only get host candidates and many
     // consumer routers still fail to connect them. Skipped under hideIp
-    // (a STUN query would itself reveal your IP to Google).
+    // (a STUN query would itself reveal your IP to Google). The built-in
+    // TURN (when enabled) sits on top as a fallback candidate for strict
+    // NATs — ICE only uses it if direct paths fail.
     opts.rtcConfig = {
-      iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.relay.metered.ca:80'] }],
+      iceServers: [
+        { urls: ['stun:stun.l.google.com:19302', 'stun:stun.relay.metered.ca:80'] },
+        ...(t.defaultTurn ? [BUILTIN_TURN] : []),
+      ],
     }
   }
   return opts

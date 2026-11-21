@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Mic, MicOff, PhoneOff, ScreenShare, Volume2, VolumeX } from 'lucide-react'
+import { Mic, MicOff, PhoneOff, ScreenShare, Video, VideoOff, Volume2, VolumeX } from 'lucide-react'
 import { getVoice } from '../lib/session'
 import { useApp } from '../store/app'
 
@@ -38,6 +38,16 @@ export default function VoiceBar() {
     }
   }
 
+  async function toggleCamera() {
+    setErr(null)
+    if (!api) return
+    if (voice.camOn) await api.stopCamera().catch(() => {})
+    else {
+      const e = await api.startCamera().catch((x: unknown) => (x instanceof Error ? x.message : 'Camera failed.'))
+      if (e) setErr(e)
+    }
+  }
+
   return (
     <div className="flex shrink-0 items-center gap-2 border-t border-rascal-line bg-rascal-panel px-4 py-2">
       <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-rascal-green" />
@@ -58,6 +68,14 @@ export default function VoiceBar() {
       >
         {voice.deafened ? <VolumeX size={14} /> : <Volume2 size={14} />}
         {voice.deafened ? 'Undeafen' : 'Deafen'}
+      </button>
+      <button
+        onClick={() => void toggleCamera()}
+        title={voice.camOn ? 'Turn camera off' : 'Turn on your camera'}
+        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold ${voice.camOn ? 'bg-rascal-accent text-white' : 'bg-white/5 hover:bg-white/10'}`}
+      >
+        {voice.camOn ? <VideoOff size={14} /> : <Video size={14} />}
+        {voice.camOn ? 'Cam on' : 'Camera'}
       </button>
       <button
         onClick={() => void toggleShare()}

@@ -13,6 +13,7 @@ import TitleBar from './components/TitleBar'
 import Toasts from './components/Toasts'
 import UpdateBanner from './components/UpdateBanner'
 import VoiceBar from './components/VoiceBar'
+import { LockScreen } from './components/LockScreen'
 import { ensureIdentity, importIdentity, type Identity } from './lib/identity'
 import { emitDropFiles } from './lib/dropfiles'
 import { getVoice, startSession, stopSession } from './lib/session'
@@ -264,6 +265,14 @@ export default function App() {
   const identity = useApp((s) => s.identity)
   const setIdentity = useApp((s) => s.setIdentity)
   const [ready, setReady] = useState(false)
+  // Optional PIN gate (Security settings). Unlock lives in memory only —
+  // every fresh app start locks again. The P2P session keeps running while
+  // locked, so background notifications still work; this gates the UI.
+  const lockEnabled = useApp((s) => s.settings.lockEnabled)
+  const lockHash = useApp((s) => s.settings.lockHash)
+  const lockSalt = useApp((s) => s.settings.lockSalt)
+  const [appUnlocked, setAppUnlocked] = useState(false)
+  const lockGate = lockEnabled && !!lockHash && !!lockSalt && !appUnlocked
 
   useEffect(() => {
     let cancelled = false
@@ -455,6 +464,14 @@ export default function App() {
         </div>
       ) : identity ? (
         <>
+          {lockGate && (
+            <LockScreen
+              salt={lockSalt}
+              hash={lockHash}
+              name={identity.name}
+              onUnlock={() => setAppUnlocked(true)}
+            />
+          )}
           <UpdateBanner />
           <ChangelogModal appVersion={__APP_VERSION__} />
           <div className="flex min-h-0 flex-1">

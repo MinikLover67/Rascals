@@ -12,6 +12,7 @@ import {
   Power,
   RefreshCw,
   RotateCcw,
+  ShieldCheck,
   Sun,
   Upload,
   User,
@@ -20,10 +21,12 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { exportIdentity, importIdentity, renameIdentity } from '../lib/identity'
+import { exportBackup, importBackup } from '../lib/backup'
 import { getVoice } from '../lib/session'
 import { checkForUpdates } from '../lib/updater'
 import { clearCustomSound, importCustomSound, playSound } from '../lib/sound'
 import { useApp, type SoundEvent } from '../store/app'
+import { hashPin, pinValid, randomSalt, verifyPin } from '../lib/applock'
 
 /** Accent presets: null follows the active theme's default accent. */
 const ACCENT_PRESETS: { id: string; label: string; value: string | null }[] = [
@@ -58,6 +61,7 @@ type SectionId =
   | 'startup'
   | 'voice'
   | 'network'
+  | 'security'
   | 'gifs'
   | 'updates'
   | 'connection'
@@ -70,6 +74,7 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: LucideIcon }> = [
   { id: 'startup', label: 'Startup', icon: Power },
   { id: 'voice', label: 'Voice & calls', icon: Mic },
   { id: 'network', label: 'Network relay', icon: Globe },
+  { id: 'security', label: 'Security', icon: ShieldCheck },
   { id: 'gifs', label: 'GIFs', icon: ImageIcon },
   { id: 'updates', label: 'Updates', icon: RefreshCw },
   { id: 'connection', label: 'Connection', icon: Activity },
@@ -151,6 +156,11 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
   const [section, setSection] = useState<SectionId>('profile')
   const [keyInput, setKeyInput] = useState(settings.tenorKey)
   const [saved, setSaved] = useState(false)
+  // App-lock PIN flow (Security section).
+  const [pin, setPin] = useState('')
+  const [pin2, setPin2] = useState('')
+  const [curPin, setCurPin] = useState('')
+  const [lockMsg, setLockMsg] = useState<string | null>(null)
   const [mics, setMics] = useState<DeviceOption[]>([])
   const [speakers, setSpeakers] = useState<DeviceOption[]>([])
   const [turnUrl, setTurnUrl] = useState(settings.turnUrl)
@@ -591,14 +601,30 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                   </div>
                   <div className="rounded-xl px-1 py-1 hover:bg-white/[0.03]">
                     <Row
+                      label="Built-in TURN relay"
+                      note="Fallback TURN for strict NAT/firewalls, and what makes Hide-my-IP work with zero setup. It's a free public service (metered.ca Open Relay) - media stays end-to-end encrypted, but a third party could see connection metadata. Turn off if you want no third parties at all."
+                      control={
+                        <Switch
+                          on={settings.defaultTurn}
+                          onChange={(on) => setSettings({ defaultTurn: on })}
+                          label="Built-in TURN relay"
+                          disabled={!!settings.turnUrl.trim() || !!turnUrl.trim()}
+                        />
+                      }
+                    />
+                  </div>
+                  <div className="rounded-xl px-1 py-1 hover:bg-white/[0.03]">
+                    <Row
                       label="Hide my IP from peers"
-                      note="Relay everything through TURN. Without this, anyone you connect to can see your IP address - normal for calls and P2P apps, but good to know. Needs TURN configured above."
+                      note="Relay everything through TURN. Without this, anyone you connect to can see your IP address - normal for calls and P2P apps, but good to know. Works with your own TURN above or the built-in relay."
                       control={
                         <Switch
                           on={settings.hideIp}
                           onChange={(on) => setSettings({ hideIp: on })}
                           label="Hide my IP from peers"
-                          disabled={!turnUrl.trim() && !settings.turnUrl.trim()}
+                          disabled={
+                            !settings.defaultTurn && !turnUrl.trim() && !settings.turnUrl.trim()
+                          }
                         />
                       }
                     />
@@ -609,6 +635,159 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                   >
                     {saved ? 'Saved' : 'Save voice settings'}
                   </button>
+                </div>
+              </Section>
+            )}
+
+            {section === 'security' && (
+              <Section
+                icon={ShieldCheck}
+                title="Security"
+                hint="Local-only protections. Nothing here ever leaves this PC."
+              >
+                <div className="space-y-2 p-1.5">
+                  {settings.lockEnabled && settings.lockHash && settings.lockSalt ? (
+                    <>
+                      <div className="rounded-xl px-1 py-1 hover:bg-white/[0.03]">
+                        <Row
+                          label="App lock is on"
+                          note="A PIN is required every time Rascals starts."
+                          control={
+                            <Switch
+                              on={settings.lockEnabled}
+                              onChange={(on) => setSettings({ lockEnabled: on })}
+                              label="App lock"
+                            />
+                          }
+                        />
+                      </div>
+                      <input
+                        type="password"
+                        value={curPin}
+                        onChange={(e) => setCurPin(e.target.value)}
+                        placeholder="Current PIN"
+                        className={`mt-1 ${sel}`}
+                        aria-label="Current PIN"
+                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="password"
+                          value={pin}
+                          onChange={(e) => setPin(e.target.value)}
+                          placeholder="New PIN (4-16 chars)"
+                          className="flex-1 rounded-lg border border-rascal-line bg-rascal-bg px-3 py-1.5 text-sm outline-none focus:border-rascal-accent"
+                          aria-label="New PIN"
+                        />
+                        <button
+                          onClick={() => {
+                            setLockMsg(null)
+                            if (!pinValid(pin)) {
+                              setLockMsg('PIN must be 4-16 characters, no spaces.')
+                              return
+                            }
+                            if (pin !== pin2) {
+                              setLockMsg('PINs do not match.')
+                              return
+                            }
+                            void (async () => {
+                              const ok = await verifyPin(curPin, settings.lockSalt!, settings.lockHash!)
+                              if (!ok) {
+                                setLockMsg('Current PIN is wrong.')
+                                return
+                              }
+                              const salt = randomSalt()
+                              const hash = await hashPin(pin, salt)
+                              setSettings({ lockHash: hash, lockSalt: salt })
+                              setPin('')
+                              setPin2('')
+                              setCurPin('')
+                              setLockMsg('PIN changed.')
+                            })()
+                          }}
+                          className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/15"
+                        >
+                          Change PIN
+                        </button>
+                        <input
+                          type="password"
+                          value={pin2}
+                          onChange={(e) => setPin2(e.target.value)}
+                          placeholder="Repeat"
+                          className="flex-1 rounded-lg border border-rascal-line bg-rascal-bg px-3 py-1.5 text-sm outline-none focus:border-rascal-accent"
+                          aria-label="Repeat new PIN"
+                        />
+                        <button
+                          onClick={() => {
+                            setLockMsg(null)
+                            void (async () => {
+                              const ok = await verifyPin(curPin, settings.lockSalt!, settings.lockHash!)
+                              if (!ok) {
+                                setLockMsg('Current PIN is wrong.')
+                                return
+                              }
+                              setSettings({ lockEnabled: false, lockHash: null, lockSalt: null })
+                              setPin('')
+                              setPin2('')
+                              setCurPin('')
+                              setLockMsg('App lock removed.')
+                            })()
+                          }}
+                          className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/15"
+                        >
+                          Remove PIN
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <input
+                        type="password"
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value)}
+                        placeholder="Choose a PIN (4-16 chars)"
+                        className={`${sel}`}
+                        aria-label="Choose a PIN"
+                      />
+                      <input
+                        type="password"
+                        value={pin2}
+                        onChange={(e) => setPin2(e.target.value)}
+                        placeholder="Repeat the PIN"
+                        className={`${sel}`}
+                        aria-label="Repeat the PIN"
+                      />
+                      <button
+                        onClick={() => {
+                          setLockMsg(null)
+                          if (!pinValid(pin)) {
+                            setLockMsg('PIN must be 4-16 characters, no spaces.')
+                            return
+                          }
+                          if (pin !== pin2) {
+                            setLockMsg('PINs do not match.')
+                            return
+                          }
+                          void (async () => {
+                            const salt = randomSalt()
+                            const hash = await hashPin(pin, salt)
+                            setSettings({ lockEnabled: true, lockHash: hash, lockSalt: salt })
+                            setPin('')
+                            setPin2('')
+                            setLockMsg('App lock is on — Rascals will ask for this PIN on start.')
+                          })()
+                        }}
+                        className="w-full rounded-lg bg-rascal-accent px-3 py-1.5 text-sm font-semibold text-white"
+                      >
+                        Enable app lock
+                      </button>
+                    </>
+                  )}
+                  {lockMsg && <p className="px-1 text-[11px] text-rascal-dim">{lockMsg}</p>}
+                  <p className="px-1 text-[11px] text-rascal-dim">
+                    The PIN is stored as a salted hash on this machine only. There is no
+                    recovery — losing the PIN means reinstalling Rascals (use Full backup
+                    from Profile to keep your data).
+                  </p>
                 </div>
               </Section>
             )}
@@ -818,17 +997,42 @@ function ProfileSection() {
     setBackup(null)
     try {
       const text = await files[0].text()
-      const id = await importIdentity(text)
-      if (!id) {
-        setMsg('That file is not a valid Rascals identity backup.')
+      // Accepts both identity-only exports and full backups.
+      const res = await importBackup(text)
+      if (!res.ok) {
+        setMsg(res.error ?? 'That file is not a valid Rascals backup.')
         return
       }
-      setIdentity(id)
-      setMsg('Identity restored. Restart the app to reconnect as yourself.')
+      if (res.summary?.startsWith('Identity')) {
+        const id = await importIdentity(text).catch(() => null)
+        if (id) setIdentity(id)
+      }
+      setMsg(res.summary ?? 'Backup restored.')
     } catch {
       setMsg('Could not read that file.')
     } finally {
       if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  async function downloadFullBackup() {
+    setMsg(null)
+    const text = await exportBackup().catch(() => null)
+    if (!text) {
+      setMsg('No identity to back up.')
+      return
+    }
+    try {
+      const blob = new Blob([text], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `rascals-backup-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      setMsg('Full backup saved (identity, contacts, servers, chats, keys). Keep it private!')
+    } catch {
+      setMsg('Download failed — use "Back up identity" instead.')
     }
   }
 
@@ -870,8 +1074,15 @@ function ProfileSection() {
           Back up identity
         </button>
         <button
+          onClick={() => void downloadFullBackup()}
+          title="Download everything: identity, contacts, servers, chats, keys"
+          className="flex-1 rounded-lg bg-rascal-accent px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+        >
+          Full backup
+        </button>
+        <button
           onClick={() => fileRef.current?.click()}
-          title="Restore from a backup file"
+          title="Restore from a backup file (identity or full)"
           className="flex-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/15"
         >
           Restore backup
