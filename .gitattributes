@@ -1,0 +1,11 @@
+# Keep shell scripts working everywhere: bash needs LF, PowerShell likes CRLF.
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.mjs text eol=lf
+
+# Regenerated build artifacts, not source — keep them out of GitHub's
+# language bar (they made HTML look like 81% of the codebase) and out of
+# diff statistics. The real stack is TypeScript (UI) + Rust (shell).
+single-file/** linguist-generated
+dist-single/** linguist-generated
+docs/web-beta/** linguist-generated

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 🩺 Connection doctor + self-help (beta)
+    url: https://miniklover67.github.io/Rascals/support/
+    about: Pick what's wrong and get targeted fixes before filing an issue.
+  - name: 🔒 Security issues
+    url: https://github.com/MinikLover67/Rascals/blob/main/SECURITY.md
+    about: Please follow the responsible disclosure process instead of opening a public issue.

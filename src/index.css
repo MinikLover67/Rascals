@@ -1,0 +1,320 @@
+@import "tailwindcss";
+
+/* Montserrat (OFL) — variable font, one file covers weights 100–900. */
+@font-face {
+  font-family: "Montserrat";
+  src: url("./assets/fonts/Montserrat-Variable.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("./assets/fonts/Montserrat-Italic-Variable.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+
+  --color-rascal-bg: #08080a;
+  --color-rascal-panel: #101014;
+  --color-rascal-rail: #000000;
+  --color-rascal-line: #232329;
+  --color-rascal-text: #e8e9ee;
+  --color-rascal-dim: #9ba1ad;
+  --color-rascal-accent: #7c6cff;
+  --color-rascal-green: #3ddc84;
+  --color-rascal-amber: #ffb224;
+  --color-rascal-red: #ff5d5d;
+
+  /* Motion: one eased curve for every interactive surface — no snap, no
+     springy overshoot. Stable across hover/focus/state changes. */
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Elevation: a 1px top highlight + soft ambient drop. Reads as "lifted"
+     without gradient/glassmorphism slop. */
+  --shadow-panel: 0 1px 0 0 rgb(255 255 255 / 0.04),
+    0 12px 32px -16px rgb(0 0 0 / 0.7);
+  --shadow-raised: 0 1px 0 0 rgb(255 255 255 / 0.06),
+    0 20px 48px -20px rgb(0 0 0 / 0.8);
+}
+
+/* Light theme: same tokens, new values. Applied via data-theme on <html>. */
+[data-theme='light'] {
+  /* light purple + white: soft lilac surfaces, white panels. The rail (top
+     bar + side nav) follows the accent color — deepened with black so white
+     rail text/chips stay readable on any accent (violet, rose, mint...). */
+  --color-rascal-bg: #f3f0fc;
+  --color-rascal-panel: #ffffff;
+  --color-rascal-rail: color-mix(in srgb, var(--color-rascal-accent) 55%, #000);
+  --color-rascal-line: #e3dcf7;
+  --color-rascal-text: #241b3a;
+  /* Muted text on white must stay readable at 10-11px sizes: 5.8:1 here. */
+  --color-rascal-dim: #574b7a;
+  --color-rascal-accent: #7a4ff0;
+  --color-rascal-green: #16a05a;
+  --color-rascal-amber: #a86a00;
+  --color-rascal-red: #d64550;
+}
+
+/* Chips that sit ON the rail (home/server buttons): always white-tinted,
+   both themes — the light-theme bg-white/* override below must not turn
+   them into dark blobs on the purple rail. */
+.rail-chip {
+  background-color: rgb(255 255 255 / 0.16);
+  color: rgb(255 255 255 / 0.75);
+}
+.rail-chip:hover {
+  background-color: rgb(255 255 255 / 0.24);
+  color: #fff;
+}
+
+/* Logo mark tile: README hero look (near-black tile, white glyph) in dark
+   theme. Light theme swaps the black tile for the accent color — a black
+   blob reads wrong on the lilac rail / white cards (user call), and an
+   accent tile means a custom accent recolors the mark live. */
+:root {
+  --mark-tile-a: #16161c;
+  --mark-tile-b: #0a0a0e;
+}
+[data-theme='light'] {
+  --mark-tile-a: color-mix(in srgb, var(--color-rascal-accent) 78%, white);
+  --mark-tile-b: var(--color-rascal-accent);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+:root {
+  color-scheme: dark;
+}
+[data-theme='light'] {
+  color-scheme: light;
+}
+
+/* Light theme: white translucent surfaces/hover states become dark ones.
+   Ghost buttons use text-rascal-text (themed), but bg-white/* utilities are
+   hard-coded translucent white — invisible on light backgrounds without this. */
+[data-theme='light'] .hover\:bg-white\/5:hover {
+  background-color: rgb(0 0 0 / 0.05);
+}
+[data-theme='light'] .hover\:bg-white\/10:hover {
+  background-color: rgb(0 0 0 / 0.07);
+}
+[data-theme='light'] .hover\:bg-white\/15:hover {
+  background-color: rgb(0 0 0 / 0.09);
+}
+[data-theme='light'] .hover\:bg-white\/20:hover {
+  background-color: rgb(0 0 0 / 0.12);
+}
+[data-theme='light'] .hover\:bg-white\/\[0\.03\]:hover {
+  background-color: rgb(0 0 0 / 0.04);
+}
+[data-theme='light'] .hover\:bg-white\/25:hover {
+  background-color: rgb(0 0 0 / 0.14);
+}
+[data-theme='light'] .bg-white\/60 {
+  background-color: rgb(0 0 0 / 0.35);
+}
+/* Accent-tinted chips wash out on white panels — deepen them in light mode. */
+[data-theme='light'] .bg-rascal-accent\/10 {
+  background-color: rgb(122 79 240 / 0.14);
+}
+[data-theme='light'] .bg-rascal-accent\/15 {
+  background-color: rgb(122 79 240 / 0.18);
+}
+[data-theme='light'] .bg-white\/5 {
+  background-color: rgb(0 0 0 / 0.05);
+}
+[data-theme='light'] .bg-white\/10 {
+  background-color: rgb(0 0 0 / 0.07);
+}
+[data-theme='light'] .bg-white\/15 {
+  background-color: rgb(0 0 0 / 0.09);
+}
+[data-theme='light'] .bg-white\/20 {
+  background-color: rgb(0 0 0 / 0.12);
+}
+[data-theme='light'] .bg-white\/\[0\.03\] {
+  background-color: rgb(0 0 0 / 0.04);
+}
+[data-theme='light'] .bg-white\/\[0\.06\] {
+  background-color: rgb(0 0 0 / 0.06);
+}
+/* Black overlays read far heavier on light surfaces — lighten them. */
+[data-theme='light'] .bg-black\/20 {
+  background-color: rgb(0 0 0 / 0.08);
+}
+[data-theme='light'] .bg-black\/25 {
+  background-color: rgb(0 0 0 / 0.1);
+}
+[data-theme='light'] .bg-black\/30 {
+  background-color: rgb(0 0 0 / 0.12);
+}
+/* Error reds tuned for dark surfaces wash out on light ones. */
+[data-theme='light'] .text-red-300,
+[data-theme='light'] .text-red-400 {
+  color: var(--color-rascal-red);
+}
+
+/* Accent-filled buttons pick their ink from --accent-ink (set alongside
+   --color-rascal-accent in App.tsx) so a white/pale custom accent flips to
+   dark text instead of swallowing the label. */
+:root {
+  --accent-ink: #ffffff;
+}
+button.bg-rascal-accent {
+  color: var(--accent-ink);
+}
+
+/* Small entrance for the profile card: one restrained pop, no bounce. */
+@keyframes card-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.card-pop {
+  animation: card-pop 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-pop {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--color-rascal-bg);
+  color: var(--color-rascal-text);
+  font-family: var(--font-sans);
+  letter-spacing: 0.01em;
+  overflow: hidden;
+}
+
+/* Tauri custom-window drag region */
+[data-tauri-drag-region] {
+  -webkit-app-region: drag;
+}
+[data-tauri-drag-region] button {
+  -webkit-app-region: no-drag;
+}
+
+/* Message links: accent elsewhere, white inside your own bubbles where
+   the accent background would swallow an accent link. Visited matches
+   unvisited so clicked links never turn browser-purple. */
+.msg-body a,
+.msg-body a:visited {
+  color: var(--color-rascal-accent);
+}
+.msg-body.msg-mine a,
+.msg-body.msg-mine a:visited {
+  color: #fff;
+}
+
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #33333c;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: #44444f;
+  background-clip: padding-box;
+}
+/* Light theme: a dark thumb on white reads heavy — use an ink-tinted one. */
+[data-theme='light'] .scroll-thin::-webkit-scrollbar-thumb {
+  background: rgb(36 27 58 / 0.22);
+  background-clip: padding-box;
+}
+[data-theme='light'] .scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: rgb(36 27 58 / 0.34);
+  background-clip: padding-box;
+}
+/* Firefox: keep parity with the thin webkit thumb. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #33333c transparent;
+}
+[data-theme='light'] .scroll-thin {
+  scrollbar-color: rgb(36 27 58 / 0.22) transparent;
+}
+
+/* ── Glass mode (acrylic / image backgrounds) ─────────────────────────
+   When a background mode is active, panels turn translucent so the
+   AppBackground layer shows through. The layer itself is pre-blurred
+   (filter on the background, not backdrop-filter here): backdrop-filter
+   would make every panel a containing block for position:fixed and
+   collapse the modals that mount inside rail/sidebar. */
+[data-bg-glass='1'] .bg-rascal-panel {
+  background-color: color-mix(in srgb, var(--color-rascal-panel) 72%, transparent);
+}
+[data-bg-glass='1'] .bg-rascal-rail {
+  background-color: color-mix(in srgb, var(--color-rascal-rail) 66%, transparent);
+}
+[data-bg-glass='1'] .bg-rascal-bg\/50 {
+  background-color: color-mix(in srgb, var(--color-rascal-bg) 55%, transparent);
+}
+/* Modals float above the glass look and must stay readable: near-opaque. */
+[data-bg-glass='1'] .fixed.z-50 .bg-rascal-panel {
+  background-color: color-mix(in srgb, var(--color-rascal-panel) 94%, transparent);
+}
+
+/* ── Polish: typography, selection, focus, motion ─────────────────────
+   Tasteful defaults that apply everywhere without touching components.
+   No gradients, no glassmorphism — just crispness and intent. */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+}
+
+/* Accent-tinted text selection in both themes. */
+::selection {
+  background: color-mix(in srgb, var(--color-rascal-accent) 30%, transparent);
+  color: var(--color-rascal-text);
+}
+
+/* Visible keyboard focus only (mouse clicks stay clean). Inherited radius
+   keeps the ring hugging each control's shape. Inputs keep their border
+   focus; this targets actionable controls. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-rascal-accent);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+@keyframes rascalNameShift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+.rascal-name-anim { background-size: 200% 200%; }

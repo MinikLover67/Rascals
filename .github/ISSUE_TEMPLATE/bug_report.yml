@@ -1,0 +1,81 @@
+name: 🐛 Bug report (beta feedback)
+description: Something is broken or not working — pick what's wrong, describe it, paste your Connection doctor report.
+labels: ["beta-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Beta feedback** — Rascals is still testing. Thanks for helping make it better.
+        Tip: open the Friends panel → **Connection doctor** → **Copy report**, and paste
+        it below. It contains no messages and no keys.
+
+  - type: dropdown
+    id: what-broke
+    attributes:
+      label: What's not working?
+      options:
+        - Connecting to friends (invite / add / stuck offline)
+        - Messages (sending, receiving, delivery)
+        - Calls / voice / screensharing
+        - File transfer
+        - Groups / servers
+        - Install or update
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect to happen instead? Any error text you saw.
+      placeholder: "I pasted my friend's invite code, it said request sent, but nothing ever arrived on their side..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Opened Rascals on my PC
+        2. Friend sent me their invite code
+        3. Pasted it and pressed Add
+        4. ...
+
+  - type: textarea
+    id: report
+    attributes:
+      label: Connection doctor report (optional but very helpful)
+      description: Friends panel → Connection doctor → Copy report. JSON like {"schema":"rascals-connection-report/1",...}
+      render: json
+
+  - type: dropdown
+    id: network
+    attributes:
+      label: What network are you on?
+      options:
+        - Home Wi-Fi
+        - Mobile / cellular data
+        - School / work / public Wi-Fi
+        - VPN active
+        - Not sure
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Rascals version
+      description: Shown at the bottom of the Friends panel (e.g. 0.1.27)
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: Both people had Rascals open at the same time
+        - label: I tried the Connection doctor's "Repair connections" button
+        - label: I checked that my invite code starts with rascal1:

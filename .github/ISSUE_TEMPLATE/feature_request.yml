@@ -1,0 +1,26 @@
+name: 💡 Feature idea (beta feedback)
+description: Suggest what Rascals should do next — even rough ideas are welcome.
+labels: ["beta-feedback"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: What area is this about?
+      options:
+        - Chat / messaging
+        - Connecting / friends
+        - Calls / voice
+        - Groups / servers
+        - Files
+        - Interface / design
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What would you like to happen? Rough is fine.
+    validations:
+      required: true

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Rascals",
+    "version": "0.1.50",
+  "identifier": "com.rascals.chat",
+  "build": {
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build && npx vite build --config vite.singlefile.mjs --base=./ && node scripts/make-singlefile.mjs"
+  },
+  "app": {
+    "security": {
+      "csp": "default-src 'self' customprotocol: asset:; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https: blob: data:; media-src 'self' blob: https:; frame-src https://www.youtube-nocookie.com; connect-src 'self' https: wss: ws: ipc: http://ipc.localhost; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+    },
+    "windows": []
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "wix": null,
+      "nsis": null
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://github.com/MinikLover67/Rascals/releases/latest/download/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEIwQjQ1NkVEQzhCM0NBMjEKUldRaHlyUEk3VmEwc0xOVm9HOHN0dzA5UjV3OVZMRnVqS0FuYUtxT1VLbWVOYnZSSzFTKzYyS3gK",
+      "dialog": false
+    }
+  }
+}
