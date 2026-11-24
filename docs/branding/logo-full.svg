@@ -1,66 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" width="640" height="160" role="img" aria-label="Rascals">
   <title>Rascals</title>
-  <defs>
-    <radialGradient id="f-tile" cx="0.5" cy="0.08" r="1.15">
-      <stop offset="0" stop-color="#2a2450"/>
-      <stop offset="0.35" stop-color="#171522"/>
-      <stop offset="1" stop-color="#08080a"/>
-    </radialGradient>
-    <radialGradient id="f-lens" cx="0.42" cy="0.3" r="0.9">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
-      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.07"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0.02"/>
-    </radialGradient>
-    <linearGradient id="f-spec" x1="0" y1="0" x2="0.9" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
-      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.08"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="f-edge" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
-      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.04"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0.16"/>
-    </linearGradient>
-    <linearGradient id="f-bottom" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0.72" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="1" stop-color="#000000" stop-opacity="0.30"/>
-    </linearGradient>
-    <filter id="f-soft" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="3.5"/>
-    </filter>
-    <filter id="f-blur" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="1"/>
-    </filter>
-  </defs>
 
-  <!-- glass mark on its dark tile -->
-  <g transform="translate(4,0) scale(1.0)">
-    <rect x="16" y="0" width="160" height="160" rx="36" fill="url(#f-tile)"/>
-    <ellipse cx="136" cy="128" rx="56" ry="47" fill="#6b5cf0" opacity="0.20" filter="url(#f-soft)"/>
-    <ellipse cx="55" cy="28" rx="47" ry="38" fill="#9b8bff" opacity="0.10" filter="url(#f-soft)"/>
-
-    <circle cx="96" cy="80" r="51.5" fill="url(#f-lens)"/>
-    <circle cx="96" cy="80" r="51.5" fill="none" stroke="url(#f-edge)" stroke-width="1"/>
-    <path d="M 54 67 A 51.5 51.5 0 0 1 138 67" fill="none" stroke="url(#f-spec)" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
-
-    <g transform="translate(96,80) scale(0.625)">
-      <g filter="url(#f-blur)" opacity="0.35" transform="translate(0,6.4)">
-        <path d="M-51.2 -51.2 L51.2 51.2" stroke="#000000" stroke-width="24" stroke-linecap="round" fill="none"/>
-        <circle cx="-51.2" cy="-51.2" r="32" fill="#000000"/>
-        <circle cx="51.2" cy="51.2" r="32" fill="#000000"/>
+  <!-- mark on its dark tile -->
+  <g transform="translate(16,0) scale(0.625)">
+    <rect x="16" y="16" width="205" height="205" rx="46" fill="#0f0f14"/>
+    <g transform="translate(28,28)">
+      <!-- friend's bubble, behind -->
+      <g fill="#7c6cff">
+        <rect x="126" y="106" width="96" height="74" rx="26"/>
+        <path d="M180 176 L180 212 L212 176 Z"/>
       </g>
-      <path d="M-51.2 -51.2 L51.2 51.2" stroke="#ffffff" stroke-width="24" stroke-linecap="round" fill="none"/>
-      <circle cx="-51.2" cy="-51.2" r="32" fill="#ffffff"/>
-      <circle cx="51.2" cy="51.2" r="32" fill="#ffffff"/>
-      <circle cx="-51.2" cy="-51.2" r="12.8" fill="#141221"/>
-      <circle cx="51.2" cy="51.2" r="12.8" fill="#141221"/>
-      <circle cx="99.2" cy="3.2" r="16" fill="#3ddc84" opacity="0.22"/>
-      <circle cx="99.2" cy="3.2" r="9.6" fill="#3ddc84"/>
-      <path d="M -85 0 A 77 77 0 0 1 -53 -53" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity="0.5"/>
+      <!-- your bubble, front -->
+      <g fill="#ffffff">
+        <rect x="34" y="50" width="126" height="94" rx="32"/>
+        <path d="M76 138 L76 186 L130 138 Z"/>
+      </g>
+      <!-- typing dots -->
+      <circle cx="74" cy="97" r="9" fill="#101018"/>
+      <circle cx="100" cy="97" r="9" fill="#101018"/>
+      <circle cx="126" cy="97" r="9" fill="#101018"/>
     </g>
-
-    <rect x="16" y="0" width="160" height="160" rx="36" fill="url(#f-bottom)"/>
-    <rect x="16" y="0" width="160" height="160" rx="36" fill="none" stroke="url(#f-edge)" stroke-width="1.5" opacity="0.6"/>
   </g>
 
   <!-- wordmark (system stack — SVG <img> can't load webfonts) -->

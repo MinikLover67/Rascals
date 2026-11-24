@@ -926,6 +926,7 @@ function ChatPanelInner({ chatKey }: { chatKey: string }) {
           </button>
           <textarea
             ref={textRef}
+            data-testid="composer"
             value={draft}
             onChange={(e) => onInput(e.target.value)}
             onPaste={onComposerPaste}

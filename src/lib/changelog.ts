@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.1.52',
+    title: 'New look, honest demo',
+    items: [
+      { text: 'New logo: two chat bubbles. No more Steam look-alike.', tag: 'new' },
+      { text: 'The demo gif is the real app now — no more fake cards and floating icons.', tag: 'improve' },
+    ],
+  },
+  {
     version: '0.1.51',
     title: 'Acrylic is see-through now',
     items: [

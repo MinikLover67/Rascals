@@ -1,22 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Rascals logo">
   <title>Rascals</title>
   <defs>
-    <mask id="holes-hero">
-      <rect width="256" height="256" fill="white"/>
-      <circle cx="96" cy="96" r="11" fill="black"/>
-      <circle cx="160" cy="160" r="14" fill="black"/>
-    </mask>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#16161c"/>
       <stop offset="1" stop-color="#0a0a0e"/>
     </linearGradient>
   </defs>
   <rect width="256" height="256" rx="56" fill="url(#tile)"/>
-  <g mask="url(#holes-hero)">
-    <path d="M96 96 L160 160" stroke="#ffffff" stroke-width="30" stroke-linecap="round" fill="none"/>
-    <circle cx="96" cy="96" r="40" fill="#ffffff"/>
-    <circle cx="160" cy="160" r="40" fill="#ffffff"/>
+  <!-- friend's bubble, behind: accent purple, tail bottom-right -->
+  <g fill="#7c6cff">
+    <rect x="126" y="106" width="96" height="74" rx="26"/>
+    <path d="M180 176 L180 212 L212 176 Z"/>
   </g>
-  <circle cx="190" cy="130" r="20" fill="#ffffff" opacity="0.18"/>
-  <circle cx="190" cy="130" r="12" fill="#ffffff"/>
+  <!-- your bubble, front: white, tail bottom-left -->
+  <g fill="#ffffff">
+    <rect x="34" y="50" width="126" height="94" rx="32"/>
+    <path d="M76 138 L76 186 L130 138 Z"/>
+  </g>
+  <!-- typing dots -->
+  <circle cx="74" cy="97" r="9" fill="#101018"/>
+  <circle cx="100" cy="97" r="9" fill="#101018"/>
+  <circle cx="126" cy="97" r="9" fill="#101018"/>
 </svg>

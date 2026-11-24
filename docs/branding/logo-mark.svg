@@ -6,58 +6,20 @@
       <stop offset="0.35" stop-color="#171522"/>
       <stop offset="1" stop-color="#08080a"/>
     </radialGradient>
-    <radialGradient id="m-lens" cx="0.42" cy="0.3" r="0.9">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
-      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.07"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0.02"/>
-    </radialGradient>
-    <linearGradient id="m-spec" x1="0" y1="0" x2="0.9" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
-      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.08"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="m-edge" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
-      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.04"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0.16"/>
-    </linearGradient>
-    <linearGradient id="m-bottom" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0.72" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="1" stop-color="#000000" stop-opacity="0.30"/>
-    </linearGradient>
-    <filter id="m-soft" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="7"/>
-    </filter>
-    <filter id="m-blur" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="2"/>
-    </filter>
   </defs>
-
   <rect width="256" height="256" rx="57" fill="url(#m-tile)"/>
-  <ellipse cx="185" cy="205" rx="90" ry="75" fill="#6b5cf0" opacity="0.20" filter="url(#m-soft)"/>
-  <ellipse cx="75" cy="45" rx="75" ry="60" fill="#9b8bff" opacity="0.10" filter="url(#m-soft)"/>
-
-  <circle cx="128" cy="128" r="82.5" fill="url(#m-lens)"/>
-  <circle cx="128" cy="128" r="82.5" fill="none" stroke="url(#m-edge)" stroke-width="1.5"/>
-  <path d="M 58 107.5 A 82.5 82.5 0 0 1 198 107.5" fill="none" stroke="url(#m-spec)" stroke-width="9" stroke-linecap="round" opacity="0.55"/>
-
-  <g transform="translate(128,128)">
-    <g filter="url(#m-blur)" opacity="0.35" transform="translate(0,4)">
-      <path d="M-32 -32 L32 32" stroke="#000000" stroke-width="15" stroke-linecap="round" fill="none"/>
-      <circle cx="-32" cy="-32" r="20" fill="#000000"/>
-      <circle cx="32" cy="32" r="20" fill="#000000"/>
-    </g>
-    <path d="M-32 -32 L32 32" stroke="#ffffff" stroke-width="15" stroke-linecap="round" fill="none"/>
-    <circle cx="-32" cy="-32" r="20" fill="#ffffff"/>
-    <circle cx="32" cy="32" r="20" fill="#ffffff"/>
-    <!-- cutouts, concentric r=8 (glyph-space r16 at scale 0.5) -->
-    <circle cx="-32" cy="-32" r="8" fill="#141221"/>
-    <circle cx="32" cy="32" r="8" fill="#141221"/>
-    <circle cx="62" cy="2" r="10" fill="#3ddc84" opacity="0.22"/>
-    <circle cx="62" cy="2" r="6" fill="#3ddc84"/>
-    <path d="M -53 0 A 48 48 0 0 1 -33 -33" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  <!-- friend's bubble, behind: accent purple, tail bottom-right -->
+  <g fill="#7c6cff">
+    <rect x="126" y="106" width="96" height="74" rx="26"/>
+    <path d="M180 176 L180 212 L212 176 Z"/>
   </g>
-
-  <rect width="256" height="256" rx="57" fill="url(#m-bottom)"/>
-  <rect width="256" height="256" rx="57" fill="none" stroke="url(#m-edge)" stroke-width="1.5" opacity="0.6"/>
+  <!-- your bubble, front: white, tail bottom-left -->
+  <g fill="#ffffff">
+    <rect x="34" y="50" width="126" height="94" rx="32"/>
+    <path d="M76 138 L76 186 L130 138 Z"/>
+  </g>
+  <!-- typing dots -->
+  <circle cx="74" cy="97" r="9" fill="#141221"/>
+  <circle cx="100" cy="97" r="9" fill="#141221"/>
+  <circle cx="126" cy="97" r="9" fill="#141221"/>
 </svg>

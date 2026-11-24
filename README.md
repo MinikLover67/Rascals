@@ -21,11 +21,11 @@
 </p>
 
 <p align="center">
-  <img src="docs/brag.gif" alt="Rascals 20-second demo" width="600" />
+  <img src="docs/brag.gif" alt="Rascals in 7 seconds" width="600" />
 </p>
 
 <p align="center">
-  <em>20-second demo</em> · <a href="docs/brag.mp4">HD MP4 with sound</a>
+  <em>7-second demo, straight from the app</em> · <a href="docs/brag.mp4">HD MP4</a>
 </p>
 
 ---
