@@ -883,20 +883,21 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
 type Diag = ReturnType<typeof import('../lib/session').diagnostics>
 
 // ── App background ────────────────────────────────────────────────────────
-// Four looks behind the whole window: the theme's own surfaces, a frosted
-// acrylic blur (Mica/Explorer-style), the user's own image, or a live ASCII
-// animation. Panels stay readable in every mode (App.tsx applies the glass
-// classes; the canvas modes render in AppBackground).
+// Four looks behind the whole window. Acrylic is the real Windows effect:
+// the window goes truly transparent and the desktop shows through, blurred
+// by the OS — no dim layer. Browser builds fall back to CSS blobs. Panels
+// stay readable in every mode (App.tsx applies the glass classes; the
+// canvas modes render in AppBackground).
 
 const BG_MODES: Array<{
   id: 'standard' | 'acrylic' | 'image' | 'ascii'
   label: string
   hint: string
 }> = [
-  { id: 'standard', label: 'Standard', hint: 'clean theme surfaces' },
-  { id: 'acrylic', label: 'Acrylic', hint: 'frosted blur, Explorer-style' },
-  { id: 'image', label: 'Image', hint: 'your own picture' },
-  { id: 'ascii', label: 'ASCII', hint: 'animated character field' },
+  { id: 'standard', label: 'Standard', hint: 'normal' },
+  { id: 'acrylic', label: 'Acrylic', hint: 'see-through' },
+  { id: 'image', label: 'Image', hint: 'your picture' },
+  { id: 'ascii', label: 'ASCII', hint: 'moving letters' },
 ]
 
 /** Downscale an image file to a JPEG data URL that fits localStorage. */
@@ -1014,10 +1015,12 @@ function BackgroundSettings() {
         })}
       </div>
 
-      {(settings.bgMode === 'acrylic' || settings.bgMode === 'image') && (
+      {/* Only image mode exposes a blur slider: acrylic is blurred by
+          Windows itself, at a strength the user can't (and needn't) tune. */}
+      {settings.bgMode === 'image' && (
         <div className="mt-3 px-1">
           <label className="block text-xs text-rascal-dim">
-            Blur strength — {settings.bgBlur}px
+            Blur — {settings.bgBlur}px
           </label>
           <input
             type="range"

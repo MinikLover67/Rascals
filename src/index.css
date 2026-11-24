@@ -285,6 +285,22 @@ body {
   background-color: color-mix(in srgb, var(--color-rascal-panel) 94%, transparent);
 }
 
+/* True acrylic (desktop app): Windows blurs whatever is behind the window,
+   so the page itself stays fully clear — no tint, no dim layer. Panels are
+   lighter than in the fallback modes so the desktop actually shows through
+   while ink stays readable. */
+html[data-bg-acrylic='1'] body,
+html[data-bg-acrylic='1'] #root,
+html[data-bg-acrylic='1'] #root > .bg-rascal-bg {
+  background: transparent;
+}
+html[data-bg-acrylic='1'] .bg-rascal-panel {
+  background-color: color-mix(in srgb, var(--color-rascal-panel) 52%, transparent);
+}
+html[data-bg-acrylic='1'] .bg-rascal-rail {
+  background-color: color-mix(in srgb, var(--color-rascal-rail) 46%, transparent);
+}
+
 /* ── Polish: typography, selection, focus, motion ─────────────────────
    Tasteful defaults that apply everywhere without touching components.
    No gradients, no glassmorphism — just crispness and intent. */

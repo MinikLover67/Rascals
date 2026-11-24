@@ -396,6 +396,29 @@ export default function App() {
     else document.documentElement.dataset.bgGlass = '1'
   }, [bgMode])
 
+  // Acrylic hands the blur to Windows itself: the window turns truly
+  // transparent (desktop shows through, Windhawk-style), the page paints
+  // nothing behind the panels, and no dim layer is added. Browser builds
+  // have no OS blur, so they keep the CSS-blob fallback from
+  // AppBackground instead.
+  const isDesktopApp = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+  useEffect(() => {
+    const root = document.documentElement
+    if (bgMode === 'acrylic' && isDesktopApp) {
+      root.dataset.bgAcrylic = '1'
+      void import('@tauri-apps/api/window').then(({ getCurrentWindow, Effect }) =>
+        getCurrentWindow().setEffects({ effects: [Effect.Acrylic] }).catch(() => {}),
+      )
+    } else {
+      delete root.dataset.bgAcrylic
+      if (isDesktopApp) {
+        void import('@tauri-apps/api/window').then(({ getCurrentWindow }) =>
+          getCurrentWindow().clearEffects().catch(() => {}),
+        )
+      }
+    }
+  }, [bgMode, isDesktopApp])
+
   // Custom accent overrides the theme default. Only well-formed #rrggbb is
   // applied — a corrupt stored value falls back to the theme accent. The
   // matching ink color keeps text readable on bright accents (e.g. white).

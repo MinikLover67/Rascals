@@ -280,6 +280,12 @@ fn main() {
                 .inner_size(1280.0, 800.0)
                 .min_inner_size(940.0, 600.0)
                 .decorations(false)
+                // Per-pixel transparency so the acrylic look can show the
+                // real desktop through the window. The OS blur itself is
+                // toggled at runtime (setEffects/clearEffects) from the
+                // Appearance setting; standard mode paints the page
+                // background opaque, so the window looks unchanged there.
+                .transparent(true)
                 // conf used dragDropEnabled:false — HTML5 drag events stay on.
                 .disable_drag_drop_handler()
                 .on_permission_request(|_, kind| match kind {

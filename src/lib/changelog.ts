@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.1.51',
+    title: 'Acrylic is see-through now',
+    items: [
+      { text: 'Acrylic now blurs your desktop behind the window. No fake blur, no dimming.', tag: 'new' },
+      { text: 'Shorter, simpler words in settings.', tag: 'improve' },
+    ],
+  },
+  {
     version: '0.1.50',
     title: 'Pairing messages that stay put, QRs from Rust',
     items: [
