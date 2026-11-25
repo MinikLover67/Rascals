@@ -2,14 +2,17 @@
 
 // NOTE: compile-verified via `npx tauri build` (Windows).
 
-use std::net::{TcpListener, UdpSocket};
+use std::collections::HashMap;
+use std::net::{SocketAddr, TcpListener, UdpSocket};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+use axum::extract::{ConnectInfo, State};
 use axum::http::{header, StatusCode};
-use axum::response::IntoResponse;
-use axum::routing::get;
-use axum::Router;
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use axum::{Json, Router};
+use serde::Deserialize;
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -22,7 +25,7 @@ use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
     webview::{PermissionKind, PermissionResponse, WebviewWindowBuilder},
-    Manager, State, WebviewUrl, WindowEvent,
+    Emitter, Manager, State, WebviewUrl, WindowEvent,
 };
 
 // ── Phone alpha: built-in web server ──────────────────────────────────────
@@ -33,16 +36,34 @@ use tauri::{
 // and data transfer then run fully P2P in the two browsers.
 const PHONE_INDEX: &[u8] = include_bytes!("../../single-file/rascals-web.html");
 
+/// The direct-line pairing offer: the QR key gates access, the payload is
+/// the same backup JSON the P2P path streams. Kept in shared state so the
+/// JS side can re-arm it with fresh data without restarting the server.
+/// The payload carries plaintext secrets, so claims REQUIRE the exact key
+/// — the key only ever travels inside the QR the user scanned.
+#[derive(Clone)]
+struct PairOffer {
+    key: String,
+    payload: String,
+}
+
 struct PhoneServer {
     stop: Arc<AtomicBool>,
     thread: Option<std::thread::JoinHandle<()>>,
     url: Option<String>,
     port: u16,
+    pair: Arc<Mutex<Option<PairOffer>>>,
 }
 
 impl PhoneServer {
     fn new() -> Self {
-        Self { stop: Arc::new(AtomicBool::new(false)), thread: None, url: None, port: 0 }
+        Self {
+            stop: Arc::new(AtomicBool::new(false)),
+            thread: None,
+            url: None,
+            port: 0,
+            pair: Arc::new(Mutex::new(None)),
+        }
     }
 }
 
@@ -88,13 +109,125 @@ fn stop_watcher(stop: Arc<AtomicBool>) -> impl std::future::Future<Output = ()> 
     }
 }
 
+/// Shared state for the pairing routes: the armed offer, the Tauri handle
+/// for event pushes to the pairing card, and per-IP rate-limit stamps.
+#[derive(Clone)]
+struct ServerCtx {
+    pair: Arc<Mutex<Option<PairOffer>>>,
+    app: tauri::AppHandle,
+    seen: Arc<Mutex<HashMap<String, std::time::Instant>>>,
+}
+
+/// The phone server sees which device (tailnet 100.x / LAN IP) is knocking
+/// — the user's own idea. Everything lands as events on the pairing card,
+/// so "does it even see my phone" is finally answerable on screen.
+fn pair_log(ctx: &ServerCtx, ip: &str, msg: &str) {
+    let _ = ctx.app.emit(
+        "phone-pair-log",
+        serde_json::json!({
+            "ip": ip,
+            "msg": msg,
+            "ts": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis())
+                .unwrap_or(0),
+        }),
+    );
+}
+
+/// GET /pair/status — how the phone discovers the direct line: it polls this
+/// on boot; `armed` says a pairing QR is live on the PC right now. The key
+/// itself is NEVER in this response (it would hand the account to anyone
+/// on the network) — the phone still needs the QR for that.
+async fn pair_status(
+    State(ctx): State<ServerCtx>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> impl IntoResponse {
+    let armed = ctx.pair.lock().map(|p| p.is_some()).unwrap_or(false);
+    let ip = addr.ip().to_string();
+    // One "phone is here" event per IP per 5 min — polls stay silent.
+    let fresh = ctx
+        .seen
+        .lock()
+        .map(|mut s| {
+            s.retain(|_, t| t.elapsed() < std::time::Duration::from_secs(300));
+            s.insert(ip.clone(), std::time::Instant::now()).is_none()
+        })
+        .unwrap_or(false);
+    if fresh {
+        pair_log(
+            &ctx,
+            &ip,
+            if armed {
+                "phone opened the app — pairing is armed, waiting for the QR scan"
+            } else {
+                "phone opened the app (no pairing armed)"
+            },
+        );
+    }
+    Json(serde_json::json!({ "app": "rascals", "armed": armed }))
+}
+
+#[derive(Deserialize)]
+struct ClaimBody {
+    key: String,
+}
+
+/// POST /pair/claim {key} — the phone hands over the key from the QR and
+/// gets the whole backup as one JSON response. This replaces the P2P relay
+/// dance when the phone can already reach the PC directly (which it must
+/// have, to load this page at all).
+async fn pair_claim(
+    State(ctx): State<ServerCtx>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Json(body): Json<ClaimBody>,
+) -> Response {
+    let ip = addr.ip().to_string();
+    let offer = ctx.pair.lock().ok().and_then(|p| p.clone());
+    let Some(offer) = offer.filter(|o| o.key == body.key) else {
+        let armed = ctx.pair.lock().map(|p| p.is_some()).unwrap_or(false);
+        pair_log(
+            &ctx,
+            &ip,
+            if armed {
+                "pairing attempt with a WRONG key — rejected"
+            } else {
+                "pairing attempt while nothing is armed — rejected"
+            },
+        );
+        return (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "ok": false,
+                "error": "That pairing code is not live here — scan the QR again.",
+            })),
+        )
+            .into_response();
+    };
+    pair_log(
+        &ctx,
+        &ip,
+        &format!(
+            "pairing claim served — {} KB over the direct line",
+            offer.payload.len() / 1024
+        ),
+    );
+    // Deliberately NOT consumed: a response lost mid-transfer must be
+    // retryable. The card hears this event and re-arms fresh data.
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "ok": true, "payload": offer.payload })),
+    )
+        .into_response()
+}
+
 /// Axum web server for the phone: GET / hands out the embedded web app with
-/// correct headers, HEAD works for free, everything else gets a clean 404
-/// (the old hand-rolled responder ignored the request entirely). Runs a
-/// current-thread tokio runtime inside the dedicated std thread — the rest
-/// of Rascals stays sync. The stop flag is polled, so shutdown needs no
-/// dummy-connection trick.
-fn serve_phone_page(listener: TcpListener, stop: Arc<AtomicBool>) {
+/// correct headers, HEAD works for free, /pair/* carries the direct-line
+/// pairing, everything else gets a clean 404. Runs a current-thread tokio
+/// runtime inside the dedicated std thread — the rest of Rascals stays
+/// sync. The stop flag is polled, so shutdown needs no dummy-connection
+/// trick.
+fn serve_phone_page(listener: TcpListener, stop: Arc<AtomicBool>, ctx: ServerCtx) {
     let rt = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(_) => return,
@@ -108,9 +241,17 @@ fn serve_phone_page(listener: TcpListener, stop: Arc<AtomicBool>) {
             Ok(l) => l,
             Err(_) => return,
         };
-        let app = Router::new().route("/", get(phone_index)).fallback(not_found);
-        let server = axum::serve(listener, app)
-            .with_graceful_shutdown(stop_watcher(stop.clone()));
+        let app = Router::new()
+            .route("/", get(pair_index))
+            .route("/pair/status", get(pair_status))
+            .route("/pair/claim", post(pair_claim))
+            .fallback(not_found)
+            .with_state(ctx);
+        let server = axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .with_graceful_shutdown(stop_watcher(stop.clone()));
         // First future to finish wins: normally the stop flag, seen within
         // 150 ms of the toggle going off. Dropping the runtime tears down any
         // connection still mid-transfer — the phone is reloading anyway.
@@ -121,7 +262,7 @@ fn serve_phone_page(listener: TcpListener, stop: Arc<AtomicBool>) {
     });
 }
 
-async fn phone_index() -> impl IntoResponse {
+async fn pair_index() -> impl IntoResponse {
     (
         [
             (header::CONTENT_TYPE, "text/html; charset=utf-8"),
@@ -170,7 +311,7 @@ fn qr_svg(text: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn phone_server_start(state: State<'_, Mutex<PhoneServer>>) -> Result<String, String> {
+fn phone_server_start(state: State<'_, Mutex<PhoneServer>>, app: tauri::AppHandle) -> Result<String, String> {
     let mut guard = state.lock().map_err(|e| e.to_string())?;
     if let Some(url) = guard.url.clone() {
         return Ok(url); // already running
@@ -184,9 +325,14 @@ fn phone_server_start(state: State<'_, Mutex<PhoneServer>>) -> Result<String, St
         .ok_or("No free port for the phone server (tried 45777–45786).")?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
     let stop = Arc::new(AtomicBool::new(false));
+    let ctx = ServerCtx {
+        pair: guard.pair.clone(),
+        app,
+        seen: Arc::new(Mutex::new(HashMap::new())),
+    };
     let handle = {
         let stop = stop.clone();
-        std::thread::spawn(move || serve_phone_page(listener, stop))
+        std::thread::spawn(move || serve_phone_page(listener, stop, ctx))
     };
     guard.stop = stop;
     guard.thread = Some(handle);
@@ -210,12 +356,46 @@ fn phone_server_stop(state: State<'_, Mutex<PhoneServer>>) -> Result<(), String>
     }
     guard.url = None;
     guard.port = 0;
+    // No server, no direct line: the offer dies with it.
+    if let Ok(mut p) = guard.pair.lock() {
+        *p = None;
+    }
     Ok(())
 }
 
 #[tauri::command]
 fn phone_server_status(state: State<'_, Mutex<PhoneServer>>) -> Option<String> {
     state.lock().ok().and_then(|g| g.url.clone())
+}
+
+/// JS arms the direct pairing line: registers the current QR key + backup
+/// payload so the phone can claim it over plain HTTP on the tailnet/LAN —
+/// no signaling relays, no WebRTC negotiation, nothing else to fail. The
+/// payload carries plaintext secrets, so it is served ONLY to callers that
+/// present the exact QR key.
+#[tauri::command]
+fn phone_pair_arm(
+    state: State<'_, Mutex<PhoneServer>>,
+    key: String,
+    payload: String,
+) -> Result<(), String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    if guard.url.is_none() {
+        return Err("The phone server is not running.".into());
+    }
+    if let Ok(mut p) = guard.pair.lock() {
+        *p = Some(PairOffer { key, payload });
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn phone_pair_disarm(state: State<'_, Mutex<PhoneServer>>) -> Result<(), String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    if let Ok(mut p) = guard.pair.lock() {
+        *p = None;
+    }
+    Ok(())
 }
 
 fn show_main(app: &tauri::AppHandle) {
@@ -304,6 +484,8 @@ fn main() {
             phone_server_start,
             phone_server_stop,
             phone_server_status,
+            phone_pair_arm,
+            phone_pair_disarm,
             qr_svg
         ])
         .on_window_event(|window, event| {

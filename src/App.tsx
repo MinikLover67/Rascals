@@ -342,6 +342,10 @@ export default function App() {
   // onboarded once and then scanned a pairing QR used to silently ignore
   // the link (0.1.50-0.1.54 "pairing doesn't work" reports).
   const pairKey = ready ? pairingKeyFromUrl() : null
+  // Auto-discovery (user request): a phone served by the computer's built-in
+  // server polls /pair/status — if a pairing QR is armed on the PC, say so
+  // even though no QR was scanned yet. The key stays in the QR.
+  const [pcArmed, setPcArmed] = useState(false)
   const [navProfile, setNavProfile] = useState(false)
   const [navCustomize, setNavCustomize] = useState(false)
   const [navSettings, setNavSettings] = useState(false)
@@ -368,6 +372,26 @@ export default function App() {
       cancelled = true
     }
   }, [setIdentity])
+
+  // Auto-discovery poll: only meaningful while this device has no account
+  // yet (the onboarding phone). Stops the moment pairing or an account wins.
+  useEffect(() => {
+    if (!ready || identity || pairKey) return
+    let cancelled = false
+    const poll = () =>
+      import('./lib/pairing')
+        .then(({ detectHttpPairing }) => detectHttpPairing())
+        .then((ok) => {
+          if (!cancelled && ok) setPcArmed(true)
+        })
+        .catch(() => {})
+    void poll()
+    const iv = window.setInterval(() => void poll(), 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(iv)
+    }
+  }, [ready, identity, pairKey])
 
   // Start / stop the P2P session with the identity's lifetime.
   useEffect(() => {
@@ -679,7 +703,17 @@ export default function App() {
           <Toasts />
         </>
       ) : (
-        <Onboarding onDone={setIdentity} />
+        <>
+          {pcArmed && (
+            <div
+              data-testid="pair-available-banner"
+              className="absolute left-1/2 top-4 z-50 -translate-x-1/2 rounded-xl border border-rascal-line bg-rascal-panel px-4 py-2 text-center text-xs font-semibold text-rascal-text shadow-xl"
+            >
+              Your computer is ready to pair — scan the QR on the PC screen.
+            </div>
+          )}
+          <Onboarding onDone={setIdentity} />
+        </>
       )}
     </div>
   )
@@ -695,6 +729,28 @@ function PairReceive({ pairKey, hasIdentity }: { pairKey: string; hasIdentity: b
   const [detail, setDetail] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [welcome, setWelcome] = useState('')
+  // The user asked for visibility: every transport decision is logged on
+  // screen — direct line found, claim served, P2P fallback, failures.
+  const [log, setLog] = useState<string[]>([])
+  const [directLine, setDirectLine] = useState(false)
+
+  const addLog = (line: string) =>
+    setLog((l) => [...l.slice(-5), `${new Date().toLocaleTimeString()} ${line}`])
+
+  useEffect(() => {
+    // Direct-line detection: this page may BE the computer's phone server.
+    let dead = false
+    void import('./lib/pairing').then(({ detectHttpPairing }) =>
+      detectHttpPairing(),
+    ).then((ok) => {
+      if (dead) return
+      setDirectLine(ok)
+      if (ok) addLog('direct line to your computer found')
+    })
+    return () => {
+      dead = true
+    }
+  }, [])
 
   async function receive() {
     // Honest states: tapping the button only starts LOOKING for the
@@ -703,19 +759,30 @@ function PairReceive({ pairKey, hasIdentity }: { pairKey: string; hasIdentity: b
     setDetail('')
     setErr(null)
     try {
-      const { receivePairing, clearPairingHash } = await import('./lib/pairing')
+      const { receivePairing, claimPairingHttp, clearPairingHash } = await import('./lib/pairing')
       const { importBackup } = await import('./lib/backup')
-      const text = await receivePairing(pairKey, (s) => {
-        if (s.phase === 'connecting') {
-          setDetail(s.detail ?? '')
-        }
+      const onStatus = (s: { phase: string; progress?: number; detail?: string }) => {
+        if (s.phase === 'connecting') setDetail(s.detail ?? '')
         if (s.phase === 'receiving') {
           setProgress(s.progress ?? 0)
           setDetail(s.detail ?? '')
           setPhase('receiving')
         }
         if (s.phase === 'error') setErr(s.detail ?? 'Transfer failed.')
-      })
+      }
+      let text: string
+      if (directLine) {
+        try {
+          text = await claimPairingHttp(pairKey, onStatus)
+          addLog('account claimed over the direct line')
+        } catch (httpErr) {
+          addLog(`direct line refused: ${httpErr instanceof Error ? httpErr.message : 'failed'} — trying P2P`)
+          text = await receivePairing(pairKey, onStatus)
+        }
+      } else {
+        addLog('no direct line — using P2P over relays')
+        text = await receivePairing(pairKey, onStatus)
+      }
       setPhase('saving')
       const res = await importBackup(text)
       if (!res.ok) {
@@ -733,7 +800,8 @@ function PairReceive({ pairKey, hasIdentity }: { pairKey: string; hasIdentity: b
         clearPairingHash()
         window.location.reload()
       }, 1600)
-    } catch {
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Transfer failed — try scanning the QR again.')
       setPhase('error')
     }
   }
@@ -775,6 +843,22 @@ function PairReceive({ pairKey, hasIdentity }: { pairKey: string; hasIdentity: b
               </p>
             )}
           </>
+        )}
+        {phase === 'idle' && directLine && (
+          <p data-testid="pair-direct-line" className="mt-3 text-[11px] text-rascal-green">
+            Direct line to your computer found — the transfer rides your
+            Tailscale/LAN, no internet needed.
+          </p>
+        )}
+        {log.length > 0 && (
+          <div
+            data-testid="pair-log"
+            className="mt-3 rounded-lg bg-black/30 p-2 text-left font-mono text-[10px] leading-relaxed text-rascal-dim"
+          >
+            {log.map((line, i) => (
+              <div key={i} className="truncate">{line}</div>
+            ))}
+          </div>
         )}
         {phase === 'connecting' && (
           <div className="mt-5">

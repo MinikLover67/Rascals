@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.1.56',
+    title: 'Pairing now rides your own network',
+    items: [
+      { text: 'The phone no longer needs relays or WebRTC to pair: it claims your account straight from this PC over Tailscale/LAN — the same connection it loaded the app from.', tag: 'improve' },
+      { text: 'The pairing card shows a live log: your PC sees which device (100.x… or LAN IP) opens the app, when a claim lands, and what failed — no more guessing.', tag: 'improve' },
+      { text: 'A phone that opens the app from your PC now discovers by itself that pairing is armed, even before scanning the QR.', tag: 'improve' },
+    ],
+  },
+  {
     version: '0.1.55',
     title: 'Pairing that actually pairs',
     items: [

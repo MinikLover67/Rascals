@@ -8,9 +8,12 @@
 //                            timeout (no infinite spinner)
 //   4. phone server        - toggle produces a URL or an actionable error
 //   5. mobile layout       - 375px viewport: no horizontal overflow
+//   6. direct-line pairing - full HTTP transport E2E against a mock of the
+//                            desktop server: detect, claim, import, boot
 // Self-contained: starts vite as a child. ASCII only.
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import http from 'node:http'
 import { chromium } from 'playwright-core'
 
 const WIN_EXE = 'C:\\Users\\MinikLover67\\AppData\\Local\\ms-playwright\\chromium-1243\\chrome-win64\\chrome.exe'
@@ -56,6 +59,46 @@ if (!devUp) {
   process.exit(1)
 }
 log('dev server UP')
+
+// Mock of the desktop app's built-in phone server (src-tauri/src/main.rs):
+// same routes, same key-gating — so the 0.1.56 direct-line pairing gets a
+// REAL transport E2E here, not just UI checks.
+let pairPayload = null
+const PAIR_KEY = 'aabbccddeeff001122334455'
+const mockServer = http.createServer(async (req, res) => {
+  // NOTE: this script shadows the global URL class with a string const —
+  // parse the pathname by hand instead of `new URL(req.url, ...)`.
+  const pathname = (req.url || '/').split('?')[0]
+  res.setHeader('content-type', 'application/json')
+  if (pathname === '/pair/status') {
+    res.end(JSON.stringify({ app: 'rascals', armed: !!pairPayload }))
+  } else if (pathname === '/pair/claim' && req.method === 'POST') {
+    let body = ''
+    for await (const c of req) body += c
+    let j = {}
+    try { j = JSON.parse(body || '{}') } catch {}
+    if (j.key === PAIR_KEY && pairPayload) {
+      res.end(JSON.stringify({ ok: true, payload: pairPayload }))
+    } else {
+      res.statusCode = 403
+      res.end(JSON.stringify({ ok: false, error: 'That pairing code is not live here — scan the QR again.' }))
+    }
+  } else {
+    // Everything else: stand in for the embedded single-file app — proxy to
+    // vite so the phone opens a REAL working app from this origin.
+    try {
+      const up = await fetch(`http://localhost:1420${req.url}`)
+      res.statusCode = up.status
+      res.setHeader('content-type', up.headers.get('content-type') || 'text/html')
+      res.end(Buffer.from(await up.arrayBuffer()))
+    } catch {
+      res.statusCode = 502
+      res.end('upstream down')
+    }
+  }
+})
+await new Promise((r) => mockServer.listen(45999, '127.0.0.1', r))
+log('mock phone server UP on :45999')
 
 const browser = await chromium.launch({
   executablePath: EXE,
@@ -319,6 +362,48 @@ try {
   fail('pair-receive', String(e).slice(0, 300))
 }
 
+// ── 8. Direct-line pairing: the full HTTP transport E2E ──────────────────
+// The 0.1.56 fix for "pairing doesn't work even on Tailscale": the phone
+// claims the backup straight from the PC's built-in server (same origin it
+// loaded the app from) — no relays, no WebRTC. Here the mock server plays
+// the PC; everything from claim to import is the real app code.
+try {
+  // The "PC": a real onboarded account, serialized through the real exporter.
+  const { ctx: pcCtx, page: pcPage } = await newPage({ width: 1280, height: 800 }, false)
+  pairPayload = await pcPage.evaluate(async () => {
+    const m = await import('/src/lib/backup.ts')
+    return await m.exportBackup()
+  })
+  pass('pair-direct-export', `${((pairPayload || '').length / 1024).toFixed(0)} KB backup serialized`)
+  if (!pairPayload || !pairPayload.includes('rascals-backup-full')) fail('pair-direct-export', 'bad payload')
+  await pcCtx.close()
+
+  // The "phone": opens the app FROM the desktop server with the QR hash.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 780 } })
+  const page = await ctx.newPage()
+  await page.goto(`http://127.0.0.1:45999/#pair=${PAIR_KEY}`, { waitUntil: 'domcontentloaded' })
+  await page.getByTestId('pair-direct-line').waitFor({ timeout: 15000 })
+  pass('pair-direct-detect', 'direct line discovered on boot')
+  await page.getByTestId('pair-receive-button').click()
+  await page.getByText("You're all set").waitFor({ timeout: 30000 })
+  pass('pair-direct-claim', 'backup claimed over HTTP and imported')
+  // Let the app run its own celebrate timer (1.6 s) — it clears the #pair
+  // hash and reloads itself; racing it here would reload with the hash
+  // still present and land on the replace screen instead.
+  await page.waitForTimeout(2500)
+  // After the auto-reload the phone must boot INTO the transferred account
+  // (straight to the code screen, not onboarding).
+  await page.goto('http://127.0.0.1:45999/', { waitUntil: 'domcontentloaded' })
+  await page.getByTestId('show-code').waitFor({ timeout: 30000 })
+  pass('pair-direct-boot', 'phone boots into the transferred account')
+  await page.screenshot({ path: shots + '/verify-pair-direct.png' })
+  await ctx.close()
+} catch (e) {
+  fail('pair-direct', String(e).slice(0, 300))
+}
+
+mockServer.closeAllConnections()
+mockServer.close()
 await browser.close()
 try { vite.kill() } catch {}
 

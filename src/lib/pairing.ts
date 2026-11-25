@@ -254,6 +254,56 @@ export function receivePairing(
   })
 }
 
+// ── Direct line: HTTP transport over the tailnet/LAN ──────────────────────
+// When the phone loaded the app from the computer's built-in server, that
+// very server can hand over the backup — no signaling relays, no WebRTC
+// negotiation, nothing else to fail. Detection is a fetch to /pair/status;
+// the claim is key-gated exactly like the P2P room.
+
+/** True when THIS origin is the computer's built-in phone server and a
+ *  pairing QR is armed on it. Never hands out the key — that stays in the
+ *  QR — so this only proves a direct line exists. */
+export async function detectHttpPairing(timeoutMs = 2500): Promise<boolean> {
+  try {
+    const ctrl = new AbortController()
+    const timer = window.setTimeout(() => ctrl.abort(), timeoutMs)
+    const res = await fetch('/pair/status', { signal: ctrl.signal, cache: 'no-store' })
+    window.clearTimeout(timer)
+    if (!res.ok) return false
+    const j = (await res.json()) as { armed?: boolean }
+    return j.armed === true
+  } catch {
+    // Served from any other host (or offline): no direct line here.
+    return false
+  }
+}
+
+/** Claim the backup over the direct line. Throws with the computer's own
+ *  error text when the key is stale — the caller falls back to P2P. */
+export async function claimPairingHttp(
+  key: string,
+  onStatus: (s: PairingReceiverStatus) => void,
+): Promise<string> {
+  onStatus({ phase: 'connecting', detail: 'Direct line — requesting your account…' })
+  const res = await fetch('/pair/claim', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ key }),
+  })
+  const j = (await res.json().catch(() => null)) as
+    | { ok: boolean; payload?: string; error?: string }
+    | null
+  if (!res.ok || !j?.ok || typeof j.payload !== 'string') {
+    throw new Error(j?.error ?? 'The computer refused the transfer.')
+  }
+  onStatus({
+    phase: 'receiving',
+    progress: 1,
+    detail: `${(j.payload.length / 1024).toFixed(0)} KB received`,
+  })
+  return j.payload
+}
+
 /** True when this browser was opened through a pairing QR link. */
 export function pairingKeyFromUrl(): string | null {
   const m = window.location.hash.match(/^#pair=([0-9a-f]{24})$/)

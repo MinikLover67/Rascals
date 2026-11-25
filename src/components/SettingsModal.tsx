@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Activity,
   Bell,
@@ -1145,8 +1145,28 @@ function PhonePairCard() {
   // so a phone that had just scanned the plain URL had to start over).
   const linkKeyRef = useRef<string | null>(null)
   const stopSenderRef = useRef<(() => void) | null>(null)
+  // Every transport event lands here: server-side IP sightings (the phone
+  // server reports who is knocking), direct-line arm/claims, P2P states.
+  const [logs, setLogs] = useState<string[]>([])
+
+  const addLog = useCallback((line: string) => {
+    setLogs((l) => [...l.slice(-6), `${new Date().toLocaleTimeString()} ${line}`])
+  }, [])
 
   useEffect(() => () => stopSenderRef.current?.(), [])
+
+  async function armDirectLine() {
+    const key = linkKeyRef.current
+    if (!key || !isDesktopApp || !appUrl) return
+    try {
+      const payload = await exportBackup()
+      if (!payload) throw new Error('could not serialize your data')
+      await (await import('@tauri-apps/api/core')).invoke('phone_pair_arm', { key, payload })
+      addLog('direct line armed — the QR now also carries the account')
+    } catch (e) {
+      addLog(`direct line unavailable (${e instanceof Error ? e.message : String(e)}) — P2P only`)
+    }
+  }
 
   async function ensurePairingQr(base: string) {
     const { createPairingLink, runPairingSender } = await import('../lib/pairing')
@@ -1168,7 +1188,30 @@ function PhonePairCard() {
       setPairing(true)
       setStatus(null)
     }
+    await armDirectLine()
   }
+
+  useEffect(() => {
+    if (!isDesktopApp) return
+    let unlisten: (() => void) | null = null
+    void import('@tauri-apps/api/event')
+      .then(({ listen }) =>
+        listen<{ ip: string; msg: string; ts: number }>('phone-pair-log', (e) => {
+          addLog(`${e.payload.msg} (${e.payload.ip})`)
+          if (e.payload.msg.includes('claim served')) {
+            // The served copy of the backup is now stale — re-arm quietly
+            // with fresh data so a second phone gets the latest state.
+            window.setTimeout(() => void armDirectLine(), 3000)
+          }
+        }),
+      )
+      .then((fn) => {
+        unlisten = fn
+      })
+      .catch(() => {})
+    return () => unlisten?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDesktopApp, addLog])
 
   useEffect(() => {
     if (isDesktopApp) {
@@ -1228,6 +1271,7 @@ function PhonePairCard() {
       setStatus(s)
       if (s.phase === 'done' || s.phase === 'error') setPairing(false)
     })
+    await armDirectLine()
   }
 
   const pairUi = (
@@ -1344,6 +1388,16 @@ function PhonePairCard() {
             </p>
           )}
           {phoneUrl && pairUi}
+          {logs.length > 0 && (
+            <div
+              data-testid="pair-log"
+              className="mt-2 rounded-lg bg-black/30 p-2 font-mono text-[10px] leading-relaxed text-rascal-dim"
+            >
+              {logs.map((line, i) => (
+                <div key={i} className="truncate">{line}</div>
+              ))}
+            </div>
+          )}
         </>
       ) : (
         pairUi
