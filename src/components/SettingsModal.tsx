@@ -1140,14 +1140,33 @@ function PhonePairCard() {
   // The URL the phone should open: our built-in server (desktop app) or the
   // address this webapp is already hosted at (plain browser).
   const [appUrl, setAppUrl] = useState('')
+  // ONE pairing code per card lifetime: the QR never switches under the
+  // user (0.1.54 and before swapped the code the moment "Pair" was pressed,
+  // so a phone that had just scanned the plain URL had to start over).
+  const linkKeyRef = useRef<string | null>(null)
+  const stopSenderRef = useRef<(() => void) | null>(null)
 
-  async function showAppUrl(u: string) {
-    setAppUrl(u)
-    setUrl(u)
+  useEffect(() => () => stopSenderRef.current?.(), [])
+
+  async function ensurePairingQr(base: string) {
+    const { createPairingLink, runPairingSender } = await import('../lib/pairing')
+    const link = createPairingLink(base || undefined, linkKeyRef.current ?? undefined)
+    linkKeyRef.current = link.key
+    setUrl(link.url)
     try {
-      setQrSvg(await renderQrSvg(u))
+      setQrSvg(await renderQrSvg(link.url))
     } catch {
       // QR is decorative — the URL text below always carries the link.
+    }
+    if (!stopSenderRef.current) {
+      // Arm immediately: the code on screen is live from the start, and it
+      // STAYS the same across re-arms ("Pair again" reuses this exact key).
+      stopSenderRef.current = runPairingSender(link.key, (s) => {
+        setStatus(s)
+        if (s.phase === 'done' || s.phase === 'error') setPairing(false)
+      })
+      setPairing(true)
+      setStatus(null)
     }
   }
 
@@ -1157,13 +1176,17 @@ function PhonePairCard() {
       void import('@tauri-apps/api/core')
         .then(({ invoke }) => invoke<string | null>('phone_server_status'))
         .then((u) => {
-          if (u) void showAppUrl(u)
+          if (u) {
+            setAppUrl(u)
+            void ensurePairingQr(u)
+          }
         })
         .catch(() => {})
       return
     }
     const origin = window.location.origin + window.location.pathname
-    void showAppUrl(origin)
+    setAppUrl(origin)
+    void ensurePairingQr(origin)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDesktopApp])
 
@@ -1173,12 +1196,17 @@ function PhonePairCard() {
     try {
       const { invoke } = await import('@tauri-apps/api/core')
       if (phoneUrl) {
+        stopSenderRef.current?.()
+        stopSenderRef.current = null
+        setPairing(false)
+        setStatus(null)
         await invoke('phone_server_stop')
         setPhoneUrl(null)
       } else {
         const u = await invoke<string>('phone_server_start')
         setPhoneUrl(u)
-        await showAppUrl(u)
+        setAppUrl(u)
+        await ensurePairingQr(u)
       }
     } catch (e) {
       setPhoneErr(e instanceof Error ? e.message : String(e))
@@ -1188,17 +1216,15 @@ function PhonePairCard() {
   }
 
   async function startPairing() {
-    const { createPairingLink, runPairingSender } = await import('../lib/pairing')
-    const link = createPairingLink(appUrl || undefined)
-    setPairing(true)
+    // Re-arm with the SAME code — the QR on screen never changes.
+    stopSenderRef.current?.()
+    stopSenderRef.current = null
     setStatus(null)
-    try {
-      setQrSvg(await renderQrSvg(link.url))
-    } catch {
-      // keep the plain-URL QR; the key still lands through the link text below
-    }
-    setUrl(link.url)
-    runPairingSender(link.key, (s) => {
+    setPairing(true)
+    const { createPairingLink, runPairingSender } = await import('../lib/pairing')
+    const link = createPairingLink(appUrl || undefined, linkKeyRef.current ?? undefined)
+    linkKeyRef.current = link.key
+    stopSenderRef.current = runPairingSender(link.key, (s) => {
       setStatus(s)
       if (s.phase === 'done' || s.phase === 'error') setPairing(false)
     })
@@ -1209,17 +1235,19 @@ function PhonePairCard() {
       <div className="mt-2 flex items-start gap-3">
             <div
               className="h-[120px] w-[120px] shrink-0 rounded-lg bg-rascal-bg p-2 [&>svg]:h-full [&>svg]:w-full"
-              // QR generated locally from this app's own URL — no network call.
+              // QR generated locally from the one-time pairing link — no
+              // network call, and it never changes while this card lives.
               dangerouslySetInnerHTML={{ __html: qrSvg ?? '' }}
-              aria-label={pairing ? 'QR code with one-time pairing link' : "QR code with this app's address"}
+              aria-label="QR code with one-time pairing link"
               role="img"
             />
             {pairing ? (
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] text-rascal-dim">
-                  Scan with the phone camera — the app opens and receives your
-                  whole account from this device: identity, friends, servers and
-                  chats. Nothing goes through a server.
+                  This one code stays live. Scan it with the phone camera — the
+                  app opens and receives your whole account from this device:
+                  identity, friends, servers and chats. Nothing goes through a
+                  server.
                 </p>
                 {status && (
                   <p
@@ -1260,12 +1288,11 @@ function PhonePairCard() {
                   </p>
                 )}
                 <ol className="list-decimal space-y-1 pl-4 text-[11px] text-rascal-dim">
-                  <li>Point your phone's camera at the QR — it opens this same webapp.</li>
+                  <li>Point your phone's camera at the QR — pairing arms itself.</li>
                   <li>
-                    Tap <span className="text-rascal-text">Receive from my computer</span> there,
-                    or press <span className="text-rascal-text">Pair my phone</span> here first:
-                    then identity, friends, servers and chats stream straight from this PC to the
-                    phone — no backup file, no server.
+                    The phone chooses: take this computer's account, or set up
+                    as new. Identity, friends, servers and chats stream straight
+                    from this PC — no backup file, no server.
                   </li>
                   <li>Same Tailscale/LAN network required — pairing travels P2P.</li>
                 </ol>
@@ -1274,7 +1301,7 @@ function PhonePairCard() {
                   onClick={() => void startPairing()}
                   className="mt-2 rounded-lg bg-rascal-accent px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-rascal-accent/30 transition-all duration-150 ease-smooth hover:brightness-110"
                 >
-                  Pair my phone
+                  {status?.phase === 'error' ? 'Pair again — same QR' : 'Pair my phone'}
                 </button>
               </div>
             )}
@@ -1308,7 +1335,7 @@ function PhonePairCard() {
         <>
           <p className="mt-1 text-[11px] text-rascal-dim">
             {phoneUrl
-              ? 'Serving the web app from this PC — over your tailnet (100.x…) or LAN. Scan the QR with the phone, then pair to receive this account.'
+              ? 'Serving the web app from this PC — over your tailnet (100.x…) or LAN. The QR below is the pairing code; scanning it arms the transfer and the phone chooses which account to use.'
               : 'Runs a tiny built-in web server on this PC and points the QR at it over Tailscale/LAN — no manual hosting, no tools. The phone must be on the same tailnet or Wi-Fi.'}
           </p>
           {phoneErr && (

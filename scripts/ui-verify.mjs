@@ -147,16 +147,11 @@ try {
   if (!/^#22d3ee$/i.test(accent)) fail('color-picker', `expected #22d3ee, got ${accent}`)
   await page.keyboard.press('Escape') // close the pop, modal stays
 
-  // Pairing: must show a status, never a fake percentage, must time out
-  // with instructions instead of spinning forever. Connection section.
+  // Pairing: the QR card arms itself the moment it mounts — one stable code,
+  // status shows without pressing anything, never a fake percentage, and it
+  // times out with instructions + a re-arm that keeps the SAME code.
   await page.getByRole('button', { name: 'Connection', exact: true }).click()
   await page.getByTestId('phone-pair').waitFor({ timeout: 10000 })
-  const pairBtn = page.getByTestId('pair-phone-button')
-  await pairBtn.scrollIntoViewIfNeeded()
-  await pairBtn.click()
-  // Real protocol (lib/pairing.ts): status stays empty for the first 30 s,
-  // then a nudge; with no phone ever joining it gives up at 3 minutes with
-  // an actionable error. No fake percentages anywhere.
   const status = page.getByTestId('pairing-status')
   await status.waitFor({ timeout: 45000 })
   const first = (await status.textContent()) || ''
@@ -173,6 +168,19 @@ try {
   if (!/no phone joined|again|scan|timed out|keep.*open/i.test(final)) {
     fail('pairing-giveup', 'no actionable timeout text after 3 min window')
   }
+  // Re-arm keeps the SAME code: click "Pair again", status resets to waiting
+  // and the QR (aria-label content = the pairing URL) must be unchanged.
+  const qrBefore = await page.evaluate(
+    () => document.querySelector('[data-testid="phone-pair"] [role="img"]')?.getAttribute('aria-label'),
+  )
+  await page.getByTestId('pair-phone-button').click()
+  await page.getByText('Waiting for your phone…').waitFor({ timeout: 10000 })
+  const urlText = await page.evaluate(
+    () => document.querySelector('[data-testid="phone-pair"] .font-mono')?.textContent || '',
+  )
+  pass('pairing-rearm', `re-armed, key ${urlText.includes('#pair=') ? 'live' : 'MISSING'}`)
+  if (!urlText.includes('#pair=')) fail('pairing-rearm', 'pairing link missing after re-arm')
+  if (qrBefore === null) fail('pairing-rearm', 'QR element vanished')
 
   // Phone server toggle: desktop-app only by design (needs the Rust shell).
   // In a plain browser the correct behavior is no toggle at all.
@@ -276,6 +284,39 @@ try {
   await ctx.close()
 } catch (e) {
   fail('wallpaper', String(e).slice(0, 300))
+}
+
+// ── 7. Pairing receive screen: works with AND without an account ─────────
+// A phone that already onboarded used to silently ignore #pair= links
+// ("pairing doesn't work"). Both states must show the choice screen.
+try {
+  // Fresh phone: no identity anywhere, link opens straight into the choice.
+  const ctxA = await browser.newContext({ viewport: { width: 390, height: 780 } })
+  const pa = await ctxA.newPage()
+  await pa.goto(`${URL}#pair=aabbccddeeff001122334455`, { waitUntil: 'domcontentloaded' })
+  await pa.getByTestId('pair-receive-button').waitFor({ timeout: 20000 })
+  const freshTitle = await pa.evaluate(() => document.querySelector('h1')?.textContent || '')
+  const newBtn = await pa.getByTestId('pair-new-device-button').count()
+  pass('pair-receive-fresh', `fresh phone: "${freshTitle}", choice buttons=${newBtn}`)
+  if (freshTitle !== 'Pair with your computer') fail('pair-receive-fresh', `unexpected title: ${freshTitle}`)
+  if (newBtn !== 1) fail('pair-receive-fresh', 'no "set up as new" choice')
+  await pa.screenshot({ path: shots + '/verify-pair-receive.png' })
+  await ctxA.close()
+
+  // Phone with an account: replace/keep choice (hash-only navigation does
+  // not reboot the app, so reload explicitly — like a real QR scan would).
+  const { ctx, page } = await newPage({ width: 390, height: 780 }, false)
+  await page.goto(`${URL}#pair=aabbccddeeff001122334455`, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.getByTestId('pair-receive-button').waitFor({ timeout: 20000 })
+  const usedTitle = await page.evaluate(() => document.querySelector('h1')?.textContent || '')
+  pass('pair-receive-reuse', `phone with account: "${usedTitle}"`)
+  if (!/Replace this phone/i.test(usedTitle)) fail('pair-receive-reuse', `expected replace choice, got: ${usedTitle}`)
+  const keepBtn = await page.getByTestId('pair-new-device-button').count()
+  if (keepBtn !== 1) fail('pair-receive-reuse', 'no "keep this account" choice')
+  await ctx.close()
+} catch (e) {
+  fail('pair-receive', String(e).slice(0, 300))
 }
 
 await browser.close()

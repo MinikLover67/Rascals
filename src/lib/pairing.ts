@@ -33,10 +33,14 @@ export type PairingLink = { key: string; url: string }
 /** Build the QR payload the desktop shows: same webapp, pairing key in the
  *  hash (hash survives static hosting and is never sent to any server).
  *  `base` overrides the app URL — the desktop app passes its built-in phone
- *  server address (http://100.x.y.z:port over Tailscale) here. */
-export function createPairingLink(base?: string): PairingLink {
-  const bytes = crypto.getRandomValues(new Uint8Array(12))
-  const key = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+ *  server address (http://100.x.y.z:port over Tailscale) here. Pass
+ *  `existingKey` to keep the SAME one-time code across re-arms — the QR the
+ *  user already scanned never changes under them. */
+export function createPairingLink(base?: string, existingKey?: string): PairingLink {
+  const key =
+    existingKey && /^[0-9a-f]{24}$/.test(existingKey)
+      ? existingKey
+      : Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('')
   const origin =
     base ?? window.location.origin + window.location.pathname
   const url = origin + '#pair=' + key
@@ -44,22 +48,31 @@ export function createPairingLink(base?: string): PairingLink {
 }
 
 /** Desktop side: join the pairing room and stream the backup when the phone
- *  shows up. Status callbacks drive the UI; the room closes after the ack. */
+ *  shows up. Status callbacks drive the UI; the room closes after the ack.
+ *  Returns a stop() so the pairing card can cancel on unmount / re-arm. */
 export function runPairingSender(
   key: string,
   onStatus: (s: PairingSenderStatus) => void,
-): void {
+): () => void {
   const room = joinRoom(roomOpts(useApp.getState().settings) as RoomOpts, pairRoomFor(key))
-  const offer = room.makeAction<{ key: string }>('p-offer')
+  const offerAct = room.makeAction<{ key: string }>('p-offer')
   const chunk = room.makeAction<{ i: number; t: number; d: string }>('p-chunk')
   const done = room.makeAction<{ bytes: number }>('p-done')
+  const readyAct = room.makeAction<Record<string, never>>('p-ready')
   let sending = false
   let finished = false
+
+  // Honest first state right away — nobody stares at a blank card wondering
+  // whether the button did anything.
+  onStatus({ phase: 'waiting' })
 
   const giveUp = window.setTimeout(() => {
     if (!finished) {
       finished = true
-      onStatus({ phase: 'error', detail: 'No phone joined within 3 minutes.' })
+      onStatus({
+        phase: 'error',
+        detail: 'No phone joined within 3 minutes. Scan the QR again — the code still works, and keep both screens open.',
+      })
       void room.leave()
     }
   }, SENDER_TIMEOUT)
@@ -88,8 +101,19 @@ export function runPairingSender(
     if (finished || sending) return
     sending = true
     window.clearTimeout(nudge)
-    onStatus({ phase: 'waiting', detail: 'Phone connected — preparing transfer…' })
+    onStatus({ phase: 'waiting', detail: 'Phone connected — opening the data line…' })
     void (async () => {
+      // Tell the phone we're here (it flips to "Computer found"), then start
+      // streaming once it confirms its data actions are registered — with a
+      // fallback so a lost ready signal can't stall the transfer.
+      await offerAct.send({ key }, { target: peerId }).catch(() => {})
+      const wasReady = await Promise.race([
+        new Promise<boolean>((res) => {
+          readyAct.onMessage = () => res(true)
+        }),
+        new Promise<boolean>((res) => window.setTimeout(() => res(false), 2500)),
+      ])
+      void wasReady
       const backup = await exportBackup().catch(() => null)
       if (!backup || finished) {
         if (!finished) {
@@ -117,7 +141,15 @@ export function runPairingSender(
       }
     })
   }
-  void offer
+
+  return () => {
+    if (!finished) {
+      finished = true
+      window.clearTimeout(giveUp)
+      window.clearTimeout(nudge)
+      void room.leave()
+    }
+  }
 }
 
 export interface PairingReceiverStatus {

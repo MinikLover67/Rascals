@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.1.55',
+    title: 'Pairing that actually pairs',
+    items: [
+      { text: 'A phone that already had an account silently ignored the pairing link. It now asks: take the computer\'s account, or keep this one.', tag: 'fix' },
+      { text: 'One QR code for the whole pairing — it arms itself and never switches to a different code mid-way.', tag: 'improve' },
+      { text: 'If the interface ever fails to draw, Rascals now tells you what broke instead of showing a blank screen.', tag: 'improve' },
+    ],
+  },
+  {
     version: '0.1.54',
     title: 'Wallpaper fix, phone app rebuilt',
     items: [

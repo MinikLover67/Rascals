@@ -336,9 +336,12 @@ export default function App() {
   const selectFriend = useApp((s) => s.selectFriend)
   const selectGroup = useApp((s) => s.selectGroup)
   const inChat = !!(selectedFriend || selectedGroup)
-  // A pairing QR opens the app with #pair=<key>: fresh devices get the
-  // receive screen; a device that already has an account keeps running it.
-  const pairKey = ready && !identity ? pairingKeyFromUrl() : null
+  // A pairing QR opens the app with #pair=<key>: the phone decides what to
+  // do there — take the computer's account or set up fresh. This works
+  // regardless of whether THIS device already has an account: a phone that
+  // onboarded once and then scanned a pairing QR used to silently ignore
+  // the link (0.1.50-0.1.54 "pairing doesn't work" reports).
+  const pairKey = ready ? pairingKeyFromUrl() : null
   const [navProfile, setNavProfile] = useState(false)
   const [navCustomize, setNavCustomize] = useState(false)
   const [navSettings, setNavSettings] = useState(false)
@@ -574,6 +577,10 @@ export default function App() {
         <div className="flex flex-1 items-center justify-center text-sm text-rascal-dim">
           Loading Rascals…
         </div>
+      ) : pairKey ? (
+        // A scanned pairing QR outranks the local account: the phone decides
+        // there whether to take the computer's account or keep its own.
+        <PairReceive pairKey={pairKey} hasIdentity={!!identity} />
       ) : identity ? (
         <>
           {lockGate && (
@@ -671,8 +678,6 @@ export default function App() {
           <IncomingCallModal />
           <Toasts />
         </>
-      ) : pairKey ? (
-        <PairReceive pairKey={pairKey} />
       ) : (
         <Onboarding onDone={setIdentity} />
       )}
@@ -684,7 +689,7 @@ export default function App() {
 // Shown when the app was opened through a pairing QR (#pair=<key>): the
 // whole account streams from the computer — no backup file to handle.
 
-function PairReceive({ pairKey }: { pairKey: string }) {
+function PairReceive({ pairKey, hasIdentity }: { pairKey: string; hasIdentity: boolean }) {
   const [phase, setPhase] = useState<'idle' | 'connecting' | 'receiving' | 'saving' | 'celebrate' | 'error'>('idle')
   const [progress, setProgress] = useState(0)
   const [detail, setDetail] = useState('')
@@ -737,20 +742,39 @@ function PairReceive({ pairKey }: { pairKey: string }) {
     <div className="flex flex-1 items-center justify-center p-6">
       <div className="card-pop w-full max-w-sm p-6 text-center">
         <LogoMark className="mx-auto" />
-        <h1 className="mt-3 text-lg font-bold">Pair with your computer</h1>
+        <h1 className="mt-3 text-lg font-bold">
+          {hasIdentity ? 'Replace this phone’s account?' : 'Pair with your computer'}
+        </h1>
         <p className="mt-2 text-sm text-rascal-dim">
-          Rascals was opened through a pairing link. Your whole account —
-          identity, friends, servers and chats — streams directly from the
-          computer that showed the QR. Nothing goes through a server.
+          {hasIdentity
+            ? 'This phone already has its own account. Receiving replaces it with the computer’s account — identity, friends, servers and chats, streamed directly, nothing through a server.'
+            : 'Rascals was opened through a pairing link. Your whole account — identity, friends, servers and chats — streams directly from the computer that showed the QR. Nothing goes through a server.'}
         </p>
         {phase === 'idle' && (
-          <button
-            data-testid="pair-receive-button"
-            onClick={() => void receive()}
-            className="mt-5 w-full rounded-xl bg-rascal-accent px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rascal-accent/30 transition-all duration-150 ease-smooth hover:brightness-110"
-          >
-            Receive from my computer
-          </button>
+          <>
+            <button
+              data-testid="pair-receive-button"
+              onClick={() => void receive()}
+              className="mt-5 w-full rounded-xl bg-rascal-accent px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rascal-accent/30 transition-all duration-150 ease-smooth hover:brightness-110"
+            >
+              {hasIdentity ? 'Use my computer’s account' : 'Receive from my computer'}
+            </button>
+            <button
+              data-testid="pair-new-device-button"
+              onClick={() => {
+                void import('./lib/pairing').then(({ clearPairingHash }) => clearPairingHash())
+                window.location.reload()
+              }}
+              className="mt-2 w-full rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-rascal-text transition-all duration-150 ease-smooth hover:bg-white/15"
+            >
+              {hasIdentity ? 'Keep this phone’s account' : 'Set up as new on this phone'}
+            </button>
+            {hasIdentity && (
+              <p className="mt-3 text-[11px] text-rascal-dim">
+                Keeping your account closes this pairing link.
+              </p>
+            )}
+          </>
         )}
         {phase === 'connecting' && (
           <div className="mt-5">
@@ -760,10 +784,9 @@ function PairReceive({ pairKey }: { pairKey: string }) {
             <p className="mt-2 text-xs font-semibold">Looking for your computer…</p>
             {detail && <p className="mt-1 text-xs text-rascal-green">{detail}</p>}
             <p className="mt-2 text-[11px] leading-relaxed text-rascal-dim">
-              Keep this screen open. On the computer, press
-              <span className="text-rascal-text"> Pair my phone</span> if you haven't yet — the
-              transfer starts on its own once the data line is up (this can take
-              half a minute on phone networks).
+              Keep this screen open. On the computer, leave the pairing screen
+              open too (Settings → Connection) — the transfer starts on its own
+              once the data line is up (this can take half a minute).
             </p>
           </div>
         )}
