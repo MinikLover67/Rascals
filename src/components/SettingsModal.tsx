@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { exportIdentity, importIdentity, renameIdentity } from '../lib/identity'
 import { exportBackup, importBackup } from '../lib/backup'
+import { bakeWallpaper } from '../lib/wallpaper'
 import { getVoice } from '../lib/session'
 import { checkForUpdates } from '../lib/updater'
 import { clearCustomSound, importCustomSound, playSound } from '../lib/sound'
@@ -920,7 +921,21 @@ async function fileToDataUrl(file: File): Promise<string> {
 function BackgroundPreview() {
   const settings = useApp((s) => s.settings)
   const { bgMode, bgImage, bgBlur, bgAscii } = settings
-  const showImage = !!bgImage && (bgMode === 'image' || bgMode === 'ascii')
+  const [baked, setBaked] = useState<string | null>(null)
+  useEffect(() => {
+    if (!bgImage) {
+      setBaked(null)
+      return
+    }
+    let cancelled = false
+    bakeWallpaper(bgImage, bgBlur)
+      .then((url) => !cancelled && setBaked(url))
+      .catch(() => !cancelled && setBaked(bgImage))
+    return () => {
+      cancelled = true
+    }
+  }, [bgImage, bgBlur])
+  const showImage = !!baked && (bgMode === 'image' || bgMode === 'ascii')
   if (bgMode === 'standard') return null
   return (
     <div
@@ -930,8 +945,8 @@ function BackgroundPreview() {
     >
       {showImage && (
         <div
-          className="absolute inset-[-24px] bg-cover bg-center"
-          style={{ backgroundImage: `url("${bgImage}")`, filter: `blur(${bgBlur / 2}px)` }}
+          className="absolute inset-[-16px] bg-cover bg-center"
+          style={{ backgroundImage: `url("${baked}")` }}
         />
       )}
       {bgMode === 'acrylic' && (

@@ -3,7 +3,9 @@
 // translucent + backdrop-blurred), this produces the acrylic / image /
 // ASCII looks chosen in Settings → Appearance → App background.
 
+import { useEffect, useState } from 'react'
 import { useApp } from '../store/app'
+import { bakeWallpaper } from '../lib/wallpaper'
 import DitherBackground, { type AsciiStyle } from './DitherBackground'
 
 // True acrylic (desktop app) is drawn by Windows behind a transparent
@@ -11,29 +13,50 @@ import DitherBackground, { type AsciiStyle } from './DitherBackground'
 // blur, so they fall back to the CSS blobs below.
 const isDesktopApp = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
+/** The wallpaper paints from a BAKED bitmap (see lib/wallpaper.ts): never
+ *  a fullscreen CSS `filter: blur()`, which WebView2 can't composite
+ *  reliably inside the transparent desktop window. */
+function useBakedWallpaper(bgImage: string | null, bgBlur: number): string | null {
+  const [baked, setBaked] = useState<string | null>(null)
+  useEffect(() => {
+    if (!bgImage) {
+      setBaked(null)
+      return
+    }
+    let cancelled = false
+    bakeWallpaper(bgImage, bgBlur)
+      .then((url) => {
+        if (!cancelled) setBaked(url)
+      })
+      .catch(() => {
+        // decode failed — fall back to the sharp source rather than nothing
+        if (!cancelled) setBaked(bgImage)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [bgImage, bgBlur])
+  return baked
+}
+
 export default function AppBackground() {
   const bgMode = useApp((s) => s.settings.bgMode)
   const bgImage = useApp((s) => s.settings.bgImage)
   const bgBlur = useApp((s) => s.settings.bgBlur)
   const bgAscii = useApp((s) => s.settings.bgAscii)
+  const bakedImage = useBakedWallpaper(bgImage, bgBlur)
 
   if (bgMode === 'standard') return null
 
   // The user's picture shows in image mode AND behind the ASCII field, so
   // picking an animation doesn't throw the wallpaper away.
-  const showImage = !!bgImage && (bgMode === 'image' || bgMode === 'ascii')
+  const showImage = !!bakedImage && (bgMode === 'image' || bgMode === 'ascii')
 
   if (bgMode === 'ascii') {
     return (
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
-        {bgImage && (
-          <div
-            className="absolute inset-[-48px] bg-cover bg-center"
-            style={{
-              backgroundImage: `url("${bgImage}")`,
-              filter: `blur(${bgBlur}px)`,
-            }}
-          />
+        {bakedImage && (
+          <div className="absolute inset-[-16px] bg-cover bg-center" style={{ backgroundImage: `url("${bakedImage}")` }} />
         )}
         <DitherBackground variant={bgAscii as AsciiStyle} />
         {/* Characters must stay readable over the picture. */}
@@ -60,15 +83,10 @@ export default function AppBackground() {
             }}
           />
         )}
-      {/* Image mode: the user's own picture, blurred + dimmed for legibility. */}
+      {/* Image mode: the user's own picture, baked-blurred + dimmed for
+          legibility. No CSS filter here — see lib/wallpaper.ts. */}
       {showImage && (
-        <div
-          className="absolute inset-[-48px] bg-cover bg-center"
-          style={{
-            backgroundImage: `url("${bgImage}")`,
-            filter: `blur(${bgBlur}px)`,
-          }}
-        />
+        <div className="absolute inset-[-16px] bg-cover bg-center" style={{ backgroundImage: `url("${bakedImage}")` }} />
       )}
       {/* Readability veil: image/ascii paint over a real picture. Acrylic
           never gets one — the whole point is seeing through, and the glass

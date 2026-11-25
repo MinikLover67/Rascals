@@ -49,6 +49,14 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+      # The phone web app (served by the desktop's built-in server) is the
+      # frontend as one self-contained HTML file, embedded into the exe at
+      # compile time. Rebuild it here so phones always get THIS tag's app,
+      # never a stale committed artifact.
+      - name: Build phone web app (single file)
+        shell: bash
+        run: npm run build:single
+
       - name: Build, sign and publish release
         uses: tauri-apps/tauri-action@v0
         env:

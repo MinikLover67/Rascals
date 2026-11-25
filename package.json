@@ -1,11 +1,12 @@
 {
     "name": "rascals",
     "private": true,
-    "version": "0.1.50",
+    "version": "0.1.54",
     "type": "module",
     "scripts": {
         "dev": "vite",
         "build": "tsc -b && vite build",
+        "build:single": "vite build --config vite.single.config.ts --base ./ --outDir dist-single && node scripts/make-singlefile.mjs",
         "lint": "oxlint",
         "test": "vitest run",
         "preview": "vite preview",

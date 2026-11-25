@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.1.54',
+    title: 'Wallpaper fix, phone app rebuilt',
+    items: [
+      { text: 'An image wallpaper could break the whole UI on desktop. The blur is baked into the picture now — no more fullscreen filter for Windows to choke on.', tag: 'fix' },
+      { text: 'The phone web app is rebuilt with every release, so what your phone loads is never an old copy.', tag: 'improve' },
+    ],
+  },
+  {
     version: '0.1.53',
     title: 'Icon fix',
     items: [

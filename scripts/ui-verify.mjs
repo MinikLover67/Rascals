@@ -222,6 +222,62 @@ try {
   fail('mobile', String(e).slice(0, 300))
 }
 
+// ── 6. Wallpaper image mode: real upload path, baked blur, UI alive ──────
+// Regression for the 0.1.50-era "image breaks the UI" reports: the wallpaper
+// must paint from a BAKED bitmap (no fullscreen CSS filter — WebView2 breaks
+// compositing that inside the transparent desktop window), the layer must
+// stay behind interactive content, and the app must remain usable both
+// live and after a reload.
+try {
+  const { ctx, page } = await newPage({ width: 1280, height: 800 }, false)
+  await page.locator('button[title^="Settings"]').first().click()
+  await page.getByRole('button', { name: 'Appearance' }).click()
+  await page.getByRole('button', { name: /^Image/ }).click()
+  await page.locator('input[type="file"]').setInputFiles('scripts/fixtures-wallpaper-test.jpg')
+  await page.waitForTimeout(1500)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(600)
+  const check = async (tag) => {
+    const r = await page.evaluate(() => {
+      // No element may carry a blur filter while covering most of the screen.
+      const blurred = [...document.querySelectorAll('div')]
+        .filter((d) => /blur\(/.test(getComputedStyle(d).filter))
+        .filter((d) => {
+          const r = d.getBoundingClientRect()
+          return r.width > innerWidth * 0.8 && r.height > innerHeight * 0.8
+        }).length
+      const bg = [...document.querySelectorAll('div')].find((d) =>
+        (d.getAttribute('style') || '').includes('background-image'))
+      const hit = document.elementFromPoint(innerWidth / 2, innerHeight / 2)
+      return {
+        fullscreenBlurs: blurred,
+        bgFound: !!bg,
+        hitIsBg: bg ? (hit === bg || bg.contains(hit)) : null,
+        overflow: document.scrollingElement.scrollWidth - window.innerWidth,
+      }
+    })
+    pass(`wallpaper-${tag}`, JSON.stringify(r))
+    if (r.fullscreenBlurs > 0) fail(`wallpaper-${tag}`, 'fullscreen CSS blur layer present (desktop break)')
+    if (!r.bgFound) fail(`wallpaper-${tag}`, 'wallpaper layer missing')
+    if (r.hitIsBg) fail(`wallpaper-${tag}`, 'wallpaper layer eats clicks at center')
+    if (r.overflow > 1) fail(`wallpaper-${tag}`, 'horizontal overflow with wallpaper')
+    return r
+  }
+  await check('live')
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1200)
+  await check('reloaded')
+  // The app must still respond: the settings gear opens the modal.
+  await page.locator('button[title^="Settings"]').first().click()
+  await page.getByRole('button', { name: 'Appearance' }).waitFor({ timeout: 5000 })
+  pass('wallpaper-interactive', 'settings opens after reload')
+  await page.keyboard.press('Escape')
+  await page.screenshot({ path: shots + '/verify-wallpaper.png' })
+  await ctx.close()
+} catch (e) {
+  fail('wallpaper', String(e).slice(0, 300))
+}
+
 await browser.close()
 try { vite.kill() } catch {}
 
