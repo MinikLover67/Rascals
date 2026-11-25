@@ -7,7 +7,7 @@ use std::net::{SocketAddr, TcpListener, UdpSocket};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use axum::extract::{ConnectInfo, State};
+use axum::extract::{ConnectInfo, State as AxumState};
 use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -140,7 +140,7 @@ fn pair_log(ctx: &ServerCtx, ip: &str, msg: &str) {
 /// itself is NEVER in this response (it would hand the account to anyone
 /// on the network) — the phone still needs the QR for that.
 async fn pair_status(
-    State(ctx): State<ServerCtx>,
+    AxumState(ctx): AxumState<ServerCtx>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
     let armed = ctx.pair.lock().map(|p| p.is_some()).unwrap_or(false);
@@ -178,7 +178,7 @@ struct ClaimBody {
 /// dance when the phone can already reach the PC directly (which it must
 /// have, to load this page at all).
 async fn pair_claim(
-    State(ctx): State<ServerCtx>,
+    AxumState(ctx): AxumState<ServerCtx>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(body): Json<ClaimBody>,
 ) -> Response {
