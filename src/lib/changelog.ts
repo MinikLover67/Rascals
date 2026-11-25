@@ -12,6 +12,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.1.53',
+    title: 'Icon fix',
+    items: [
+      { text: 'The desktop icon had white corners. Gone — the tile sits on transparency now.', tag: 'fix' },
+    ],
+  },
+  {
     version: '0.1.52',
     title: 'New look, honest demo',
     items: [

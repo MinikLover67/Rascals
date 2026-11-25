@@ -12,9 +12,11 @@ EXE = os.path.expanduser('~/.cache/ms-playwright/chromium-1200/chrome-linux64/ch
 from playwright.sync_api import sync_playwright
 
 JOBS = [
-    ('docs/branding/logo-mark-hero.svg', f'{TMP}/hero.png', False),
+    # (svg, out, transparent) — tile renders MUST be transparent outside the
+    # rounded corners, or the desktop icon shows white edges (0.1.52 bug).
+    ('docs/branding/logo-mark-hero.svg', f'{TMP}/hero.png', True),
     ('docs/branding/logo-mark-white.svg', f'{TMP}/white.png', True),
-    ('docs/branding/logo-mark.svg', f'{TMP}/mark.png', False),
+    ('docs/branding/logo-mark.svg', f'{TMP}/mark.png', True),
     ('docs/branding/logo-full.svg', f'{TMP}/full.png', False),
 ]
 
